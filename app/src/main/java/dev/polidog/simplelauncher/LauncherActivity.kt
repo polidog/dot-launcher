@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -170,6 +171,7 @@ fun Launcher(resumes: Int, homePresses: Int) {
         locationGranted = Place.granted(context)
     }
     val place by rememberPlace(locationGranted)
+    val track by rememberNowPlaying(noticesGranted)
     // 0: ホーム、1: カテゴリ別（左にスワイプで出る）
     val pager = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
@@ -223,6 +225,9 @@ fun Launcher(resumes: Int, homePresses: Int) {
             .background(theme.background)
             .then(if (dark) Modifier else Modifier.lcdGrid(theme.foreground))
     ) {
+        // 曲を出しているあいだはナビゲーションバーの余白を曲の行が持つ
+        val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val pageBottom = if (track == null) navBottom else 0.dp
         Column(Modifier.fillMaxSize()) {
             TopBar(theme, status, place, dark, onToggleDark = { Settings.setDarkMode(context, !dark) })
             HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth()) { page ->
@@ -240,7 +245,7 @@ fun Launcher(resumes: Int, homePresses: Int) {
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .navigationBarsPadding()
+                            .padding(bottom = pageBottom)
                             .padding(horizontal = 18.dp, vertical = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
@@ -256,10 +261,12 @@ fun Launcher(resumes: Int, homePresses: Int) {
                             onLaunch = { Apps.launch(context, it) },
                             onMenu = { homeMenu = it })
                     }
-                } else CategoryApps(theme, categories,
+                } else CategoryApps(theme, categories, pageBottom,
                     onLaunch = { Apps.launch(context, it) },
                     onMenu = { homeMenu = it })
             }
+            // ホームとカテゴリのどちらのページでも出す
+            track?.let { NowPlayingBar(theme, it, Modifier.navigationBarsPadding().padding(bottom = 12.dp)) { NowPlaying.open(context, it) } }
         }
         homeMenu?.let { app -> AppMenu(theme, app, onDismiss = { homeMenu = null }) { action ->
             homeMenu = null
@@ -290,6 +297,59 @@ fun HomeClock(t: LauncherTheme, s: Status, modifier: Modifier = Modifier) {
             BasicText(s.longDate, style = TextStyle(fontFamily = Mono, fontSize = 18.sp, color = t.muted, shadow = shadow))
         }
     }
+}
+
+/** 再生中の曲を画面の下に横に流して出す。曲名のタップで音楽アプリを開き、右のボタンで操作する。 */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun NowPlayingBar(t: LauncherTheme, track: Track, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val style = TextStyle(fontFamily = Mono, fontSize = 16.sp, color = t.foreground)
+    val text = listOf(track.title, track.artist).filter { it.isNotBlank() }.joinToString(" - ")
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(t.background.copy(alpha = 0.72f))
+            .padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(4.dp))
+                .combinedClickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BasicText("󰎈  ", style = style.copy(fontFamily = Icons, color = if (track.playing) t.accent else t.muted))
+            // 曲が変わったら頭から流し直す
+            androidx.compose.runtime.key(text) {
+                BasicText(
+                    text = text,
+                    maxLines = 1,
+                    style = if (track.playing) style else style.copy(color = t.muted),
+                    modifier = Modifier.weight(1f).basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 1500),
+                )
+            }
+        }
+        MediaButton(t, "󰒮") { NowPlaying.previous(track) }
+        MediaButton(t, if (track.playing) "󰏤" else "󰐊") { NowPlaying.toggle(track) }
+        MediaButton(t, "󰒭") { NowPlaying.next(track) }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MediaButton(t: LauncherTheme, icon: String, onClick: () -> Unit) {
+    BasicText(
+        text = icon,
+        style = TextStyle(fontFamily = Icons, fontSize = 22.sp, color = t.foreground),
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .combinedClickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    )
 }
 
 /** ホーム下部の最近のアプリ。タップで切り替え、長押しで操作メニュー。 */
@@ -336,6 +396,7 @@ fun RecentApps(
 fun CategoryApps(
     t: LauncherTheme,
     categories: Map<AppEntry, Category>,
+    bottomInset: androidx.compose.ui.unit.Dp,
     onLaunch: (AppEntry) -> Unit,
     onMenu: (AppEntry) -> Unit,
 ) {
@@ -350,7 +411,7 @@ fun CategoryApps(
         columns = StaggeredGridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
         // 上は箱の見出しが枠からはみ出すぶん空ける
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 20.dp, bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 20.dp, bottom = 16.dp + bottomInset),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalItemSpacing = 20.dp,
     ) {
