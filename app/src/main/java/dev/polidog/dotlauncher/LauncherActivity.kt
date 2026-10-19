@@ -1,4 +1,4 @@
-package dev.polidog.simplelauncher
+package dev.polidog.dotlauncher
 
 import android.app.Activity
 import android.content.BroadcastReceiver
@@ -176,8 +176,9 @@ fun Launcher(resumes: Int, homePresses: Int) {
         recentGranted = Recent.granted(context)
         if (recentGranted && apps.isNotEmpty()) recent = withContext(Dispatchers.IO) { Recent.load(context, apps) }
     }
-    // 申告で分かるぶんを先に出し、残りは Jev に聞いてから出し直す
-    LaunchedEffect(apps) {
+    // 申告で分かるぶんを先に出し、残りは Jev に聞いてから出し直す。キーを入れたときも聞き直す
+    val jevKey by Settings.jevKey
+    LaunchedEffect(apps, jevKey) {
         categories = Categories.load(context, apps)
         if (withContext(Dispatchers.IO) { Categories.classify(context, apps) }) categories = Categories.load(context, apps)
     }
@@ -814,7 +815,8 @@ fun HomeSettings(t: LauncherTheme, onDismiss: () -> Unit) {
         Modifier
             .fillMaxSize()
             .background(t.background.copy(alpha = 0.6f))
-            .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) },
+            .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) }
+            .imePadding(),
         contentAlignment = Alignment.BottomCenter,
     ) {
         Column(
@@ -835,8 +837,58 @@ fun HomeSettings(t: LauncherTheme, onDismiss: () -> Unit) {
             Spacer(Modifier.height(6.dp))
             SettingRow(t, Settings.spellSearch, "検索をゲーム風のウィンドウにする")
             FollowSystemRow(t)
+            JevKeyRow(t)
         }
     }
+}
+
+/**
+ * Jev の API キー。タップで入力欄を開き、完了で残す。空にすると Jev を使う機能が止まる。
+ * キーは人に見られないよう末尾だけ出す。
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun JevKeyRow(t: LauncherTheme) {
+    val context = LocalContext.current
+    val key by Settings.jevKey
+    var editing by remember { mutableStateOf(false) }
+    val label = if (key.isEmpty()) "Jev の API キー（未設定）" else "Jev の API キー（…${key.takeLast(4)}）"
+    MenuRow(t, "󰚩", label, if (key.isEmpty()) t.muted else t.foreground) { editing = !editing }
+    if (!editing) return
+    var field by remember { mutableStateOf(TextFieldValue(key, TextRange(key.length))) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    val save = { Settings.setJevKey(context, field.text); editing = false }
+    BasicTextField(
+        value = field,
+        onValueChange = { field = it },
+        singleLine = true,
+        textStyle = TextStyle(fontFamily = Mono, fontSize = 15.sp, color = t.foreground),
+        cursorBrush = SolidColor(t.accent),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { save() }),
+        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .border(1.dp, t.muted, RoundedCornerShape(4.dp))
+            .padding(horizontal = 10.dp, vertical = 9.dp)
+            .focusRequester(focus),
+        decorationBox = { inner ->
+            if (field.text.isEmpty()) BasicText("キーを貼りつけて完了", style = TextStyle(fontFamily = Mono, fontSize = 15.sp, color = t.muted))
+            inner()
+        },
+    )
+    BasicText(
+        text = "キーは typesafe.ai で取れます。入れると、意味での検索とカテゴリ分けのために、アプリ名と検索語を TypeSafe に送ります",
+        style = TextStyle(fontFamily = Mono, fontSize = 12.sp, color = t.muted),
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .combinedClickable {
+                context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://typesafe.ai/")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    )
 }
 
 @Composable

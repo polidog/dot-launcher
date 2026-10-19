@@ -11,21 +11,41 @@ val localProps = Properties().apply {
 }
 
 android {
-    namespace = "dev.polidog.simplelauncher"
+    namespace = "dev.polidog.dotlauncher"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.polidog.simplelauncher"
+        applicationId = "dev.polidog.dotlauncher"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
-        versionName = "0.1"
-        // Jev の曖昧検索に使う。local.properties か環境変数から。無ければ曖昧検索は出ない
-        val jevKey = localProps.getProperty("TYPESAFE_API_KEY") ?: System.getenv("TYPESAFE_API_KEY") ?: ""
-        buildConfigField("String", "TYPESAFE_API_KEY", "\"$jevKey\"")
+        versionName = "1.0.0"
+        buildConfigField("String", "TYPESAFE_API_KEY", "\"\"")
+    }
+    // アップロード鍵は keystore.properties（git に入れない）か環境変数から。無ければ release は署名しない
+    val keystoreProps = Properties().apply {
+        rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+    }
+    fun signingValue(key: String): String? = keystoreProps.getProperty(key) ?: System.getenv("SIGNING_" + key.uppercase())
+    signingConfigs {
+        create("upload") {
+            signingValue("storeFile")?.let { storeFile = rootProject.file(it) }
+            storePassword = signingValue("storePassword")
+            keyAlias = signingValue("keyAlias")
+            keyPassword = signingValue("keyPassword")
+        }
     }
     buildTypes {
-        release { isMinifyEnabled = false }
+        debug {
+            // 自分の端末用。Jev のキーを local.properties か環境変数から初期値として入れる（設定画面で上書きできる）
+            val jevKey = localProps.getProperty("TYPESAFE_API_KEY") ?: System.getenv("TYPESAFE_API_KEY") ?: ""
+            buildConfigField("String", "TYPESAFE_API_KEY", "\"$jevKey\"")
+        }
+        release {
+            isMinifyEnabled = false
+            // 配るものにはキーを入れない。ユーザーが設定画面で自分のキーを入れる
+            if (signingValue("storeFile") != null) signingConfig = signingConfigs.getByName("upload")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

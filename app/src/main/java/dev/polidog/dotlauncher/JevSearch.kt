@@ -1,4 +1,4 @@
-package dev.polidog.simplelauncher
+package dev.polidog.dotlauncher
 
 import android.os.SystemClock
 import android.util.Log
@@ -25,8 +25,8 @@ object JevSearch {
     const val MODEL = "jev-1.14.0"
     @Volatile private var lastWarmMs = 0L
 
-    // ponytail: キーは APK から取り出せる。人に配るときは中継サーバーへ
-    val available: Boolean get() = BuildConfig.TYPESAFE_API_KEY.isNotEmpty()
+    /** キーはユーザーが設定で入れる。 */
+    val available: Boolean get() = Settings.jevKey.value.isNotEmpty()
 
     private val cache = object : LinkedHashMap<String, Result>(32, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Result>) = size > 64
@@ -53,7 +53,7 @@ object JevSearch {
             connectTimeout = CONNECT_TIMEOUT_MS
             readTimeout = READ_TIMEOUT_MS
             requestMethod = method
-            setRequestProperty("Authorization", "Bearer ${BuildConfig.TYPESAFE_API_KEY}")
+            setRequestProperty("Authorization", "Bearer ${Settings.jevKey.value}")
         }
 
     /** body を送って返事の JSON を返す。HTTP が 200 でなければ null、通信の失敗は投げる。IO スレッドから。 */

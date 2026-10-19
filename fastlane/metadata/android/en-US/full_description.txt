@@ -1,0 +1,35 @@
+A home screen app with no icon grid, just text. The home screen shows a big pixel clock, your notifications, recently used apps and the song that's playing — nothing else.
+
+■ Type to launch
+・Tap or swipe up on the home screen to search. Type a few letters and press Enter
+・Results are ranked by prefix > word start > substring. Full-width/half-width and hiragana/katakana are treated the same
+・Words you used to open an app are kept as history, so you can search again with a single tap
+
+■ Home screen
+・A big pixel-art clock and the date
+・Your notifications (tap to open, swipe sideways to dismiss)
+・Recently used apps
+・The song that's playing scrolls along the bottom, with previous / play-pause / next buttons
+・Swipe left for a page of all apps grouped by category (Social, Work, Maps & Travel, Games, ...)
+
+■ Look
+・Light mode looks like a Game Boy Pocket LCD; dark mode is a black game-style window with a white frame
+・Toggle light/dark from the top-left corner, or follow the system setting
+
+■ Jev (optional, bring your own API key)
+Enter an API key for TypeSafe's Jev in settings to unlock:
+・Search by meaning (type "music" to find your music app, "map" to find Maps)
+・Automatic categories for apps whose developer didn't declare one
+Get your key from typesafe.ai. Without a key, every core launcher feature still works. App names and search words are sent to TypeSafe only when you enter a key.
+
+■ Permissions
+・Notification access: to show notifications and the playing song on the home screen
+・Usage access: to show recently used apps
+Both are optional. The developer never receives any of this information.
+
+■ Language
+The interface is currently in Japanese.
+
+■ Open source
+The source code is on GitHub under the MIT License.
+https://github.com/polidog/dot-launcher

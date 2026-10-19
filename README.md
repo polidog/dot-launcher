@@ -1,4 +1,4 @@
-# Simple Launcher
+# DotLauncher
 
 シンプルな Android のホームアプリ。見た目は Omarchy（waybar / walker）寄り。Pixel 4a（Android 13）で動作確認。
 
@@ -13,7 +13,7 @@
 - ホームは大きな時計と最近使ったアプリ（直近 6 時間・最大 6 件）。タップか上スワイプでアプリ検索が出る
 - 通知・最近のアプリにはそれぞれ許可が要る（通知へのアクセス、使用状況へのアクセス）。許可していないとホーム下部に案内が出る
 - 文字を打つと絞り込み（先頭一致 > 単語頭一致 > 部分一致 > 部分列一致）。Enter か行タップで起動。全角半角、ひらがなカタカナは区別しない（「まっぷ」で マップ）
-- 先頭一致・単語頭一致が無いときは、[Jev](https://typesafe.ai/)（TypeSafe）に意味で選ばせて 󰚩 付きで差し込む（「おんがく」で音楽アプリ）。`TYPESAFE_API_KEY` が無ければこの機能は出ない
+- 先頭一致・単語頭一致が無いときは、[Jev](https://typesafe.ai/)（TypeSafe）に意味で選ばせて 󰚩 付きで差し込む（「おんがく」で音楽アプリ）。API キーはユーザーが設定画面で入れる。無ければこの機能は出ない
 - ホームボタンで検索やメニューを閉じる
 - ホームの空きに大きな時計と日付（和暦つき）。何もないところを長押しで設定
 - ホームを左にスワイプすると、全アプリをカテゴリ別（連絡・SNS、仕事、地図・移動、ゲームなど）に並べたページが出る。カテゴリごとに検索と同じウィンドウの箱に入れ、2 列に詰めて並べる。タップで起動、長押しでメニュー。振り分けは自動で、アプリの作者が申告したカテゴリを使い、申告の無いアプリと「仕事」と申告したアプリ（ブラウザや決済まで入って広すぎる）は Jev に一度だけ聞いて端末に残す（キーが無ければ「その他」）
@@ -30,24 +30,45 @@ Gradle 8.11 なので JDK 21 を使う（JDK 26 は不可）。
 export JAVA_HOME=~/.local/share/mise/installs/java/21
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell cmd package set-home-activity dev.polidog.simplelauncher/.LauncherActivity
+adb shell cmd package set-home-activity dev.polidog.dotlauncher/.LauncherActivity
 ```
 
 ## Jev の API キー
 
-`local.properties`（または環境変数）に入れてからビルドする。キーは APK に入るので、自分の端末で使う前提。
+ホームの何もないところを長押しして、設定の「Jev の API キー」に貼りつける。キーは端末の中にだけ残る。
+
+開発中は `local.properties`（または環境変数）に入れておくと、debug ビルドだけ初期値として入る。release ビルドには入らない。
 
 ```properties
 TYPESAFE_API_KEY=...
 ```
+
+## リリース
+
+Play に上げるのは署名した AAB。アップロード鍵は一度作ったら無くさないこと（git には入れない）。
+
+```sh
+keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+cat > keystore.properties <<'PROPS'
+storeFile=upload.jks
+storePassword=...
+keyAlias=upload
+keyPassword=...
+PROPS
+./gradlew bundleRelease   # app/build/outputs/bundle/release/app-release.aab
+```
+
+`keystore.properties` の代わりに環境変数 `SIGNING_STOREFILE` / `SIGNING_STOREPASSWORD` / `SIGNING_KEYALIAS` / `SIGNING_KEYPASSWORD` でもよい。出すたびに `app/build.gradle.kts` の `versionCode` を上げる。
+
+ストアの説明文とスクリーンショットは `fastlane/metadata/android/ja-JP/`、プライバシーポリシーは `docs/privacy.md`（英語版は `docs/privacy-en.md`）。英語の説明文は `fastlane/metadata/android/en-US/`。
 
 ## デモ表示
 
 README の動画用。debug ビルドだけで効き、通知・検索履歴・再生中の曲をダミーに差し替える（本物には触らない）。
 
 ```sh
-adb shell am start -n dev.polidog.simplelauncher/.LauncherActivity --ez demo true   # 入る
-adb shell am start -n dev.polidog.simplelauncher/.LauncherActivity --ez demo false  # 戻る
+adb shell am start -n dev.polidog.dotlauncher/.LauncherActivity --ez demo true   # 入る
+adb shell am start -n dev.polidog.dotlauncher/.LauncherActivity --ez demo false  # 戻る
 ```
 
 ## テーマの差し替え
@@ -56,8 +77,8 @@ adb shell am start -n dev.polidog.simplelauncher/.LauncherActivity --ez demo fal
 
 ```sh
 adb push ~/.local/state/omarchy/current/theme/colors.toml \
-  /sdcard/Android/data/dev.polidog.simplelauncher/files/colors.toml
-adb shell am force-stop dev.polidog.simplelauncher
+  /sdcard/Android/data/dev.polidog.dotlauncher/files/colors.toml
+adb shell am force-stop dev.polidog.dotlauncher
 ```
 
 ## 構成

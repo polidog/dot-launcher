@@ -1,4 +1,4 @@
-package dev.polidog.simplelauncher
+package dev.polidog.dotlauncher
 
 import android.content.BroadcastReceiver
 import android.content.Context

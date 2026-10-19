@@ -1,0 +1,1 @@
+A quiet, text-only home screen with a pixel clock. Type a few letters to launch.
