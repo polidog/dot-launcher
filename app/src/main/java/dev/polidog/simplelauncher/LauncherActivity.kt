@@ -93,6 +93,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.BasicText
+import android.location.Location
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -162,6 +165,11 @@ fun Launcher(resumes: Int, homePresses: Int) {
     var settingsOpen by remember { mutableStateOf(false) }
     var noticesGranted by remember { mutableStateOf(true) }
     var categories by remember { mutableStateOf(emptyMap<AppEntry, Category>()) }
+    var locationGranted by remember { mutableStateOf(Place.granted(context)) }
+    val askLocation = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        locationGranted = Place.granted(context)
+    }
+    val place by rememberPlace(locationGranted)
     // 0: ホーム、1: カテゴリ別（左にスワイプで出る）
     val pager = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
@@ -180,6 +188,7 @@ fun Launcher(resumes: Int, homePresses: Int) {
     }
     LaunchedEffect(resumes) {
         noticesGranted = NoticeListener.granted(context)
+        locationGranted = Place.granted(context)
         withContext(Dispatchers.IO) { JevSearch.warmUp() }
     }
     BackHandler(enabled = walkerOpen) { walkerOpen = false }
@@ -215,7 +224,7 @@ fun Launcher(resumes: Int, homePresses: Int) {
             .then(if (dark) Modifier else Modifier.lcdGrid(theme.foreground))
     ) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(theme, status, dark, onToggleDark = { Settings.setDarkMode(context, !dark) })
+            TopBar(theme, status, place, dark, onToggleDark = { Settings.setDarkMode(context, !dark) })
             HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth()) { page ->
                 if (page == 0) Column(
                     Modifier
@@ -237,6 +246,7 @@ fun Launcher(resumes: Int, homePresses: Int) {
                     ) {
                         if (!noticesGranted && !demo) Hint(theme, "通知へのアクセスを許可すると、通知がここに出ます") { NoticeListener.requestAccess(context) }
                         if (!recentGranted && !demo) Hint(theme, "使用状況へのアクセスを許可すると、最近のアプリが出ます") { Recent.requestAccess(context) }
+                        if (!locationGranted && !demo) Hint(theme, "位置情報を許可すると、上のバーに緯度経度が出ます") { askLocation.launch(Place.permissions) }
                         if (noticesGranted || demo) Notices(theme, notices.take(4),
                             onOpen = { NoticeListener.open(context, it) },
                             onDismiss = { n ->
@@ -477,7 +487,7 @@ private fun NoticeRow(t: LauncherTheme, n: Notice, time: String, onOpen: (Notice
 /** waybar 風の一行バー。左端の月・太陽のタップでダークモードを切り替える。 */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TopBar(t: LauncherTheme, s: Status, dark: Boolean, onToggleDark: () -> Unit) {
+fun TopBar(t: LauncherTheme, s: Status, place: Location?, dark: Boolean, onToggleDark: () -> Unit) {
     val style = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = t.foreground)
     // パンチホール: 上端に食い込む切り欠きの右端まで左を空け、バーの高さは切り欠きの高さに合わせる
     val view = LocalView.current
@@ -504,6 +514,11 @@ fun TopBar(t: LauncherTheme, s: Status, dark: Boolean, onToggleDark: () -> Unit)
                 .combinedClickable(onClick = onToggleDark)
                 .padding(horizontal = 6.dp, vertical = 2.dp),
         )
+        place?.let {
+            Spacer(Modifier.width(4.dp))
+            BasicText(text = "󰍎 ", style = style.copy(fontFamily = Icons, color = t.muted))
+            BasicText(text = Place.format(it), style = style.copy(color = t.muted))
+        }
         // 時刻と日付はホームの大きな時計に出すので、バーには出さない
         Spacer(Modifier.weight(1f))
         val net = when { s.wifi -> "󰖩"; s.cell -> "󰤨"; else -> "󰖪" }
