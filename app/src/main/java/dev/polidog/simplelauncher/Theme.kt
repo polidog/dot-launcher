@@ -2,6 +2,7 @@ package dev.polidog.simplelauncher
 
 import android.content.Context
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import java.io.File
 
 /**
@@ -58,7 +59,8 @@ data class LauncherTheme(
                 background = bg,
                 foreground = fg,
                 accent = c("accent", c("color3", Color(0xFFED9A1D))),
-                muted = c("color8", Color(0xFF31363A)),
+                // color8 は背景に近すぎて読めないので、前景と背景のあいだの色にする
+                muted = lerp(bg, fg, 0.6f),
                 selectionBg = c("selection_background", fg),
                 selectionFg = c("selection_foreground", bg),
                 red = c("color1", Color(0xFFF24331)),

@@ -1,5 +1,6 @@
 package dev.polidog.simplelauncher
 
+import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -23,7 +24,6 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -137,8 +137,13 @@ class LauncherActivity : ComponentActivity() {
 fun Launcher(resumes: Int, homePresses: Int) {
     val context = LocalContext.current
     val omarchy = remember { LauncherTheme.load(context) }
-    val dark = isSystemInDarkTheme()
+    val dark = isDark()
     val theme = if (dark) omarchy else LauncherTheme.GameBoy
+    // ホームで明暗を切り替えたときもナビゲーションバーのボタンが見えるようにする
+    val view = LocalView.current
+    LaunchedEffect(dark) {
+        (context as? Activity)?.window?.let { WindowCompat.getInsetsController(it, view).isAppearanceLightNavigationBars = !dark }
+    }
     val status by rememberStatus()
     var apps by remember { mutableStateOf(emptyList<AppEntry>()) }
     var walkerOpen by remember { mutableStateOf(false) }
@@ -185,8 +190,9 @@ fun Launcher(resumes: Int, homePresses: Int) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // ライトモードは壁紙を隠して画面ごとゲームボーイの液晶にする
-            .then(if (dark) Modifier else Modifier.background(theme.background).lcdGrid(theme.foreground))
+            // 壁紙は隠してテーマの背景色で塗る。ライトモードは画面ごとゲームボーイの液晶にする
+            .background(theme.background)
+            .then(if (dark) Modifier else Modifier.lcdGrid(theme.foreground))
             .pointerInput(Unit) {
                 detectTapGestures(onTap = { walkerOpen = true }, onLongPress = { settingsOpen = true })
             }
@@ -195,7 +201,7 @@ fun Launcher(resumes: Int, homePresses: Int) {
             }
     ) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(theme, status)
+            TopBar(theme, status, dark, onToggleDark = { Settings.setDarkMode(context, !dark) })
             HomeClock(theme, status, Modifier.weight(1f).fillMaxWidth())
             Column(
                 Modifier
@@ -360,9 +366,10 @@ private fun NoticeRow(t: LauncherTheme, n: Notice, time: String, onOpen: (Notice
     }
 }
 
-/** waybar 風の一行バー。 */
+/** waybar 風の一行バー。左端の月・太陽のタップでダークモードを切り替える。 */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TopBar(t: LauncherTheme, s: Status) {
+fun TopBar(t: LauncherTheme, s: Status, dark: Boolean, onToggleDark: () -> Unit) {
     val style = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = t.foreground)
     // パンチホール: 上端に食い込む切り欠きの右端まで左を空け、バーの高さは切り欠きの高さに合わせる
     val view = LocalView.current
@@ -381,6 +388,14 @@ fun TopBar(t: LauncherTheme, s: Status) {
             .padding(start = startPad, end = 14.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        BasicText(
+            text = if (dark) "󰖔" else "󰖙",
+            style = style.copy(fontFamily = Icons),
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .combinedClickable(onClick = onToggleDark)
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+        )
         // 時刻と日付はホームの大きな時計に出すので、バーには出さない
         Spacer(Modifier.weight(1f))
         val net = when { s.wifi -> "󰖩"; s.cell -> "󰤨"; else -> "󰖪" }
@@ -410,7 +425,7 @@ fun Walker(theme: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLa
     val context = LocalContext.current
     val spell by Settings.spellSearch
     // ゲーム風のウィンドウ。ダークモードはドラクエ（黒地に白）、ライトモードはゲームボーイポケット（液晶）
-    val dark = isSystemInDarkTheme()
+    val dark = isDark()
     val paper = if (dark) Color.Black else theme.background
     val ink = if (dark) Color.White else theme.foreground
     val t = if (spell) theme.copy(
@@ -649,6 +664,7 @@ fun HomeSettings(t: LauncherTheme, onDismiss: () -> Unit) {
             )
             Spacer(Modifier.height(6.dp))
             SettingRow(t, Settings.spellSearch, "検索をゲーム風のウィンドウにする")
+            FollowSystemRow(t)
         }
     }
 }
@@ -658,6 +674,17 @@ private fun SettingRow(t: LauncherTheme, state: MutableState<Boolean>, label: St
     val context = LocalContext.current
     val on by state
     MenuRow(t, if (on) "󰄲" else "󰄱", label, if (on) t.foreground else t.muted) { Settings.set(context, state, !on) }
+}
+
+/** ダークモードを端末の設定に合わせるか。外すといまの明暗のまま固定する。 */
+@Composable
+private fun FollowSystemRow(t: LauncherTheme) {
+    val context = LocalContext.current
+    val follow = Settings.darkMode.value == null
+    val dark = isDark()
+    MenuRow(t, if (follow) "󰄲" else "󰄱", "明暗を端末の設定に合わせる", if (follow) t.foreground else t.muted) {
+        Settings.setDarkMode(context, if (follow) dark else null)
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
