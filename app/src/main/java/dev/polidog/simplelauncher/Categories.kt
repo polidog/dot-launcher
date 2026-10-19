@@ -24,7 +24,7 @@ enum class Category(val label: String) {
 
 /**
  * アプリをカテゴリに振り分ける。人は何もしない。
- * まずアプリの作者が申告したカテゴリ（ApplicationInfo.category）を使い、申告の無いアプリは Jev に聞く。
+ * まずアプリの作者が申告したカテゴリ（ApplicationInfo.category）を使い、申告の無いアプリと「仕事」と申告したアプリは Jev に聞く。
  * Jev の答えは端末内（SharedPreferences）に残し、同じアプリについて聞くのは 1 回だけ。
  */
 object Categories {
@@ -100,10 +100,12 @@ object Categories {
         }
     }
 
-    /** アプリの作者が申告したカテゴリ。申告が無ければ null。 */
+    /**
+     * アプリの作者が申告したカテゴリ。申告が無ければ null。
+     * PRODUCTIVITY はブラウザ・メール・決済まで入って広すぎるので、申告が無いのと同じに扱い Jev に聞く。
+     */
     private fun declared(category: Int): Category? = when (category) {
         ApplicationInfo.CATEGORY_SOCIAL -> Category.Contact
-        ApplicationInfo.CATEGORY_PRODUCTIVITY -> Category.Work
         ApplicationInfo.CATEGORY_MAPS -> Category.Maps
         ApplicationInfo.CATEGORY_NEWS -> Category.News
         ApplicationInfo.CATEGORY_AUDIO -> Category.Music
