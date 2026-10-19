@@ -6,10 +6,11 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import java.text.Normalizer
 
 /** removable: 端末から消せるか（プリインストールのシステムアプリは消せない）。 */
 data class AppEntry(val label: String, val packageName: String, val activity: String, val removable: Boolean) {
-    val key: String = label.lowercase()
+    val key: String = Apps.normalize(label)
 }
 
 object Apps {
@@ -56,7 +57,7 @@ object Apps {
 
     /** filter の並びに一致の強さ（0: 先頭一致 〜 3: 部分列一致）を付けたもの。 */
     fun scored(apps: List<AppEntry>, query: String): List<Pair<Int, AppEntry>> {
-        val q = query.trim().lowercase()
+        val q = normalize(query.trim())
         if (q.isEmpty()) return apps.map { 0 to it }
         return apps.mapNotNull { app ->
             val k = app.key
@@ -69,6 +70,11 @@ object Apps {
             }
             score to app
         }.sortedWith(compareBy({ it.first }, { it.second.key }))
+    }
+
+    /** 検索用に揃える。全角英数は半角に（NFKC）、小文字に、ひらがなはカタカナに（「まっぷ」で マップ）。 */
+    fun normalize(s: String): String = buildString {
+        for (c in Normalizer.normalize(s, Normalizer.Form.NFKC).lowercase()) append(if (c in 'ぁ'..'ゖ') c + 0x60 else c)
     }
 
     private fun isSubsequence(q: String, s: String): Boolean {

@@ -102,6 +102,8 @@ val Icons = FontFamily(
 class LauncherActivity : ComponentActivity() {
     /** ホームに戻るたびに増やす。最近のアプリ・予定・許可状態の読み直しに使う。 */
     private val resumes = mutableIntStateOf(0)
+    /** ホームボタンが押されるたびに増やす。開いている検索やメニューを閉じる。 */
+    private val homePresses = mutableIntStateOf(0)
 
     override fun onResume() {
         super.onResume()
@@ -115,12 +117,19 @@ class LauncherActivity : ComponentActivity() {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.statusBars())
         }
-        setContent { Launcher(resumes.intValue) }
+        Demo.apply(this, intent)
+        setContent { Launcher(resumes.intValue, homePresses.intValue) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        Demo.apply(this, intent)
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) homePresses.intValue++
     }
 }
 
 @Composable
-fun Launcher(resumes: Int) {
+fun Launcher(resumes: Int, homePresses: Int) {
     val context = LocalContext.current
     val theme = remember { LauncherTheme.load(context) }
     val status by rememberStatus()
@@ -132,7 +141,8 @@ fun Launcher(resumes: Int) {
     var agenda by remember { mutableStateOf<Agenda?>(null) }
     var calendarGranted by remember { mutableStateOf(true) }
     var noticesGranted by remember { mutableStateOf(true) }
-    val notices by NoticeListener.notices
+    val demo by Demo.enabled
+    val notices = if (demo) Demo.notices.value else NoticeListener.notices.value
     val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         calendarGranted = ok
     }
@@ -152,6 +162,10 @@ fun Launcher(resumes: Int) {
         if (calendarGranted) agenda = withContext(Dispatchers.IO) { Agendas.next(context) }
     }
     BackHandler(enabled = walkerOpen) { walkerOpen = false }
+    LaunchedEffect(homePresses) {
+        walkerOpen = false
+        homeMenu = null
+    }
     BackHandler(enabled = homeMenu != null) { homeMenu = null }
     // インストール・削除されたら一覧を読み直す
     DisposableEffect(Unit) {
@@ -179,7 +193,7 @@ fun Launcher(resumes: Int) {
             }
     ) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(theme, status, agenda)
+            TopBar(theme, status, if (demo) Demo.agenda() else agenda)
             Spacer(Modifier.weight(1f))
             Column(
                 Modifier
@@ -188,14 +202,16 @@ fun Launcher(resumes: Int) {
                     .padding(horizontal = 18.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                if (!calendarGranted) Hint(theme, "カレンダーを許可すると、次の予定が上に出ます") {
+                if (!calendarGranted && !demo) Hint(theme, "カレンダーを許可すると、次の予定が上に出ます") {
                     calendarPermission.launch(Manifest.permission.READ_CALENDAR)
                 }
-                if (!noticesGranted) Hint(theme, "通知へのアクセスを許可すると、通知がここに出ます") { NoticeListener.requestAccess(context) }
-                if (!recentGranted) Hint(theme, "使用状況へのアクセスを許可すると、最近のアプリが出ます") { Recent.requestAccess(context) }
-                if (noticesGranted) Notices(theme, notices.take(4),
+                if (!noticesGranted && !demo) Hint(theme, "通知へのアクセスを許可すると、通知がここに出ます") { NoticeListener.requestAccess(context) }
+                if (!recentGranted && !demo) Hint(theme, "使用状況へのアクセスを許可すると、最近のアプリが出ます") { Recent.requestAccess(context) }
+                if (noticesGranted || demo) Notices(theme, notices.take(4),
                     onOpen = { NoticeListener.open(context, it) },
-                    onDismiss = { NoticeListener.dismiss(it) })
+                    onDismiss = { n ->
+                        if (demo) Demo.notices.value = Demo.notices.value - n else NoticeListener.dismiss(n)
+                    })
                 RecentApps(theme, recent,
                     onLaunch = { Apps.launch(context, it) },
                     onMenu = { homeMenu = it })
