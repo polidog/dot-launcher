@@ -3,13 +3,12 @@ package dev.polidog.simplelauncher
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.mutableStateOf
-import java.util.Calendar
 
 /**
  * README の動画を撮るためのデモ表示。debug ビルドだけで効く。
  *   adb shell am start -n dev.polidog.simplelauncher/.LauncherActivity --ez demo true   # 入る
  *   adb shell am start -n dev.polidog.simplelauncher/.LauncherActivity --ez demo false  # 戻る
- * 予定・通知・検索履歴をダミーに差し替える。本物のカレンダーや通知、履歴には触らない。
+ * 通知・検索履歴をダミーに差し替える。本物の通知や履歴には触らない。
  */
 object Demo {
     val enabled = mutableStateOf(false)
@@ -23,15 +22,6 @@ object Demo {
             SearchHistory.reset(context, demo = true, listOf("ちず", "しごと"))
         }
         enabled.value = on
-    }
-
-    /** 次の正時から 1 時間の予定。 */
-    fun agenda(): Agenda {
-        val begin = Calendar.getInstance().apply {
-            add(Calendar.HOUR_OF_DAY, 1)
-            set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
-        return Agenda("ランチ", begin, begin + 60 * 60 * 1000L)
     }
 
     private fun sampleNotices(pkg: String): List<Notice> {

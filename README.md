@@ -5,10 +5,9 @@
 <p align="center"><img src="docs/demo.gif" width="300" alt="ホームから検索を開き、「chr」で Chrome、「おんがく」で Jev が音楽アプリを選び、長押しでメニューを出す"></p>
 
 - 上部に waybar 風の一行バー（左に時刻と日付、右にネットワークと電池）
-- バーの下に次の予定（端末のカレンダーから、終日の予定は除く）
 - ホームに届いている通知（最大 4 件）。タップで元のアプリを開き、横スワイプで消す
 - ホームは壁紙と最近使ったアプリ（直近 6 時間・最大 6 件）。タップか上スワイプで walker 風のランチャーが出る
-- 予定・通知・最近のアプリにはそれぞれ許可が要る（カレンダー、通知へのアクセス、使用状況へのアクセス）。許可していないとホーム下部に案内が出る
+- 通知・最近のアプリにはそれぞれ許可が要る（通知へのアクセス、使用状況へのアクセス）。許可していないとホーム下部に案内が出る
 - 文字を打つと絞り込み（先頭一致 > 単語頭一致 > 部分一致 > 部分列一致）。Enter か行タップで起動。全角半角、ひらがなカタカナは区別しない（「まっぷ」で マップ）
 - 先頭一致・単語頭一致が無いときは、[Jev](https://typesafe.ai/)（TypeSafe）に意味で選ばせて 󰚩 付きで差し込む（「おんがく」で音楽アプリ）。`TYPESAFE_API_KEY` が無ければこの機能は出ない
 - ホームボタンで検索やメニューを閉じる
@@ -37,7 +36,7 @@ TYPESAFE_API_KEY=...
 
 ## デモ表示
 
-README の動画用。debug ビルドだけで効き、予定・通知・検索履歴をダミーに差し替える（本物には触らない）。
+README の動画用。debug ビルドだけで効き、通知・検索履歴をダミーに差し替える（本物には触らない）。
 
 ```sh
 adb shell am start -n dev.polidog.simplelauncher/.LauncherActivity --ez demo true   # 入る
@@ -63,7 +62,6 @@ adb shell am force-stop dev.polidog.simplelauncher
 | `Apps.kt` | 起動可能アプリの列挙、絞り込み、起動 |
 | `Status.kt` | 時刻、電池、ネットワークの状態 |
 | `Recent.kt` | 使用状況から最近のアプリを拾う |
-| `Agenda.kt` | カレンダーから次の予定を引く |
 | `Notices.kt` | 通知を受け取る NotificationListenerService |
 | `JevSearch.kt` | Jev で意味からアプリを選ぶ |
 | `SearchHistory.kt` | 検索語の履歴 |

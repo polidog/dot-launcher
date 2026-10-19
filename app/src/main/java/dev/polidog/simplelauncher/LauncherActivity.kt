@@ -7,9 +7,6 @@ import android.content.IntentFilter
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import android.Manifest
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.content.ContextCompat
@@ -100,7 +97,7 @@ val Icons = FontFamily(
 )
 
 class LauncherActivity : ComponentActivity() {
-    /** ホームに戻るたびに増やす。最近のアプリ・予定・許可状態の読み直しに使う。 */
+    /** ホームに戻るたびに増やす。最近のアプリ・許可状態の読み直しに使う。 */
     private val resumes = mutableIntStateOf(0)
     /** ホームボタンが押されるたびに増やす。開いている検索やメニューを閉じる。 */
     private val homePresses = mutableIntStateOf(0)
@@ -138,14 +135,9 @@ fun Launcher(resumes: Int, homePresses: Int) {
     var recent by remember { mutableStateOf(emptyList<AppEntry>()) }
     var recentGranted by remember { mutableStateOf(true) }
     var homeMenu by remember { mutableStateOf<AppEntry?>(null) }
-    var agenda by remember { mutableStateOf<Agenda?>(null) }
-    var calendarGranted by remember { mutableStateOf(true) }
     var noticesGranted by remember { mutableStateOf(true) }
     val demo by Demo.enabled
     val notices = if (demo) Demo.notices.value else NoticeListener.notices.value
-    val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        calendarGranted = ok
-    }
 
     LaunchedEffect(walkerOpen) { if (walkerOpen || apps.isEmpty()) apps = Apps.load(context) }
     LaunchedEffect(resumes, apps) {
@@ -155,11 +147,6 @@ fun Launcher(resumes: Int, homePresses: Int) {
     LaunchedEffect(resumes) {
         noticesGranted = NoticeListener.granted(context)
         withContext(Dispatchers.IO) { JevSearch.warmUp() }
-    }
-    // 時刻が進むたびに次の予定を取り直す
-    LaunchedEffect(resumes, status.time, calendarGranted) {
-        calendarGranted = Agendas.granted(context)
-        if (calendarGranted) agenda = withContext(Dispatchers.IO) { Agendas.next(context) }
     }
     BackHandler(enabled = walkerOpen) { walkerOpen = false }
     LaunchedEffect(homePresses) {
@@ -193,7 +180,7 @@ fun Launcher(resumes: Int, homePresses: Int) {
             }
     ) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(theme, status, if (demo) Demo.agenda() else agenda)
+            TopBar(theme, status)
             Spacer(Modifier.weight(1f))
             Column(
                 Modifier
@@ -202,9 +189,6 @@ fun Launcher(resumes: Int, homePresses: Int) {
                     .padding(horizontal = 18.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                if (!calendarGranted && !demo) Hint(theme, "カレンダーを許可すると、次の予定が上に出ます") {
-                    calendarPermission.launch(Manifest.permission.READ_CALENDAR)
-                }
                 if (!noticesGranted && !demo) Hint(theme, "通知へのアクセスを許可すると、通知がここに出ます") { NoticeListener.requestAccess(context) }
                 if (!recentGranted && !demo) Hint(theme, "使用状況へのアクセスを許可すると、最近のアプリが出ます") { Recent.requestAccess(context) }
                 if (noticesGranted || demo) Notices(theme, notices.take(4),
@@ -346,9 +330,9 @@ private fun NoticeRow(t: LauncherTheme, n: Notice, time: String, onOpen: (Notice
     }
 }
 
-/** waybar 風の一行バー。次の予定があれば下にもう一行。 */
+/** waybar 風の一行バー。 */
 @Composable
-fun TopBar(t: LauncherTheme, s: Status, next: Agenda?) {
+fun TopBar(t: LauncherTheme, s: Status) {
     val style = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = t.foreground)
     // パンチホール: 上端に食い込む切り欠きの右端まで左を空け、バーの高さは切り欠きの高さに合わせる
     val view = LocalView.current
@@ -382,16 +366,6 @@ fun TopBar(t: LauncherTheme, s: Status, next: Agenda?) {
         val batColor = if (s.battery in 0..15 && !s.charging) t.red else t.foreground
         BasicText(text = "$bat ", style = style.copy(fontFamily = Icons, color = batColor))
         if (s.battery >= 0) BasicText(text = "${s.battery}%", style = style.copy(color = batColor))
-    }
-    if (next != null) {
-        Row(
-            Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 6.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BasicText("󰃭 ", style = style.copy(fontFamily = Icons, color = t.accent))
-            BasicText(next.label(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = style)
-        }
     }
     }
 }
