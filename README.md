@@ -2,7 +2,7 @@
 
 シンプルな Android のホームアプリ。見た目は Omarchy（waybar / walker）寄り。Pixel 4a（Android 13）で動作確認。
 
-<p align="center"><img src="docs/demo.gif" width="300" alt="ホームから検索を開き、「chr」で Chrome、履歴の「ちず」で Jev がマップを選び、長押しでメニューを出す"></p>
+<p align="center"><img src="docs/demo-v2.gif" width="300" alt="ホームから検索を開き、「chr」で Chrome、履歴の「ちず」で Jev がマップを選び、長押しでメニューを出す"></p>
 
 - 上部に waybar 風の一行バー（左に時刻と日付、右にネットワークと電池）
 - ホームに届いている通知（最大 4 件）。タップで元のアプリを開き、横スワイプで消す
