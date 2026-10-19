@@ -14,17 +14,28 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.chrono.JapaneseChronology
+import java.time.chrono.JapaneseDate
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
 data class Status(
     val time: String = "--:--",
-    val date: String = "",
+    /** ホームの時計の下に出す長い日付。2026年(令和8年)10月19日(月) */
+    val longDate: String = "",
     val battery: Int = -1,
     val charging: Boolean = false,
     val wifi: Boolean = false,
     val cell: Boolean = false,
 )
+
+private val wareki = DateTimeFormatter.ofPattern("GGGGy年", Locale.JAPAN).withChronology(JapaneseChronology.INSTANCE)
+private val monthDay = DateTimeFormatter.ofPattern("M月d日(E)", Locale.JAPAN)
+
+private fun longDate(d: LocalDate): String =
+    "${d.year}年(${wareki.format(JapaneseDate.from(d))})${monthDay.format(d)}"
 
 private fun snapshot(context: Context): Status {
     val now = Date()
@@ -36,7 +47,7 @@ private fun snapshot(context: Context): Status {
     val caps = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) }
     return Status(
         time = SimpleDateFormat("HH:mm", Locale.US).format(now),
-        date = SimpleDateFormat("EEE MM-dd", Locale.US).format(now),
+        longDate = longDate(LocalDate.now()),
         battery = if (level >= 0) level * 100 / scale else -1,
         charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL,
         wifi = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true,

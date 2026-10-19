@@ -7,6 +7,7 @@ import java.io.File
 /**
  * テーマ色（Omarchy の colors.toml 形式）。既定は assets/colors.toml（Turbonite）。
  * 端末側の files/colors.toml（adb push で置ける）があればそれで上書きする。
+ * これはダークモードの色で、ライトモードのときは GameBoy を使う。
  *   adb push ~/.local/state/omarchy/current/theme/colors.toml \
  *     /sdcard/Android/data/dev.polidog.simplelauncher/files/colors.toml
  */
@@ -22,6 +23,19 @@ data class LauncherTheme(
     val cyan: Color,
 ) {
     companion object {
+        /** ライトモードの色。ゲームボーイポケットの液晶の 4 階調。 */
+        val GameBoy = LauncherTheme(
+            background = Color(0xFFC4CFA1),
+            foreground = Color(0xFF1F1F1F),
+            accent = Color(0xFF4D533C),
+            muted = Color(0xFF4D533C),
+            selectionBg = Color(0xFF1F1F1F),
+            selectionFg = Color(0xFFC4CFA1),
+            red = Color(0xFF1F1F1F),
+            yellow = Color(0xFF4D533C),
+            cyan = Color(0xFF8B956D),
+        )
+
         fun load(context: Context): LauncherTheme {
             val text = context.getExternalFilesDir(null)
                 ?.let { File(it, "colors.toml") }

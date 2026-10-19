@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -62,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -134,7 +136,9 @@ class LauncherActivity : ComponentActivity() {
 @Composable
 fun Launcher(resumes: Int, homePresses: Int) {
     val context = LocalContext.current
-    val theme = remember { LauncherTheme.load(context) }
+    val omarchy = remember { LauncherTheme.load(context) }
+    val dark = isSystemInDarkTheme()
+    val theme = if (dark) omarchy else LauncherTheme.GameBoy
     val status by rememberStatus()
     var apps by remember { mutableStateOf(emptyList<AppEntry>()) }
     var walkerOpen by remember { mutableStateOf(false) }
@@ -181,6 +185,8 @@ fun Launcher(resumes: Int, homePresses: Int) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // ライトモードは壁紙を隠して画面ごとゲームボーイの液晶にする
+            .then(if (dark) Modifier else Modifier.background(theme.background).lcdGrid(theme.foreground))
             .pointerInput(Unit) {
                 detectTapGestures(onTap = { walkerOpen = true }, onLongPress = { settingsOpen = true })
             }
@@ -236,7 +242,7 @@ fun HomeClock(t: LauncherTheme, s: Status, modifier: Modifier = Modifier) {
         if (maxHeight < 140.dp) return@BoxWithConstraints
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             BasicText(s.time, style = TextStyle(fontFamily = Mono, fontSize = 88.sp, color = t.foreground, shadow = shadow))
-            BasicText(s.date, style = TextStyle(fontFamily = Mono, fontSize = 18.sp, color = t.muted, shadow = shadow))
+            BasicText(s.longDate, style = TextStyle(fontFamily = Mono, fontSize = 18.sp, color = t.muted, shadow = shadow))
         }
     }
 }
@@ -375,8 +381,7 @@ fun TopBar(t: LauncherTheme, s: Status) {
             .padding(start = startPad, end = 14.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BasicText(text = s.time, style = style.copy(fontWeight = FontWeight.Bold))
-        BasicText(text = "  ${s.date}", style = style.copy(color = t.muted))
+        // 時刻と日付はホームの大きな時計に出すので、バーには出さない
         Spacer(Modifier.weight(1f))
         val net = when { s.wifi -> "󰖩"; s.cell -> "󰤨"; else -> "󰖪" }
         BasicText(text = net, style = style.copy(fontFamily = Icons))
@@ -404,10 +409,13 @@ fun TopBar(t: LauncherTheme, s: Status) {
 fun Walker(theme: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLaunch: (AppEntry) -> Unit) {
     val context = LocalContext.current
     val spell by Settings.spellSearch
-    // ドラクエ風のときは黒地に白で描く
+    // ゲーム風のウィンドウ。ダークモードはドラクエ（黒地に白）、ライトモードはゲームボーイポケット（液晶）
+    val dark = isSystemInDarkTheme()
+    val paper = if (dark) Color.Black else theme.background
+    val ink = if (dark) Color.White else theme.foreground
     val t = if (spell) theme.copy(
-        background = Color.Black, foreground = Color.White, muted = Color.White.copy(alpha = 0.55f),
-        accent = Color.White, selectionBg = Color.Transparent, selectionFg = Color.White,
+        background = paper, foreground = ink, muted = ink.copy(alpha = 0.55f),
+        accent = ink, selectionBg = Color.Transparent, selectionFg = ink,
     ) else theme
     var blink by remember { mutableStateOf(true) }
     LaunchedEffect(spell) { while (spell) { delay(450); blink = !blink } }
@@ -461,7 +469,7 @@ fun Walker(theme: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLa
         Column(
             Modifier
                 .fillMaxWidth()
-                .then(if (spell) Modifier.spellFrame() else Modifier.clip(RoundedCornerShape(6.dp)).background(t.background))
+                .then(if (spell) Modifier.spellFrame(paper, ink, lcd = !dark) else Modifier.clip(RoundedCornerShape(6.dp)).background(t.background))
                 .pointerInput(Unit) { detectTapGestures(onTap = { }) }
                 .padding(14.dp),
         ) {
@@ -538,8 +546,8 @@ fun Walker(theme: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLa
         }
         if (spell) BasicText(
             "アプリ検索",
-            style = TextStyle(fontFamily = Mono, fontSize = 15.sp, color = Color.White),
-            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-9).dp).background(Color.Black).padding(horizontal = 8.dp),
+            style = TextStyle(fontFamily = Mono, fontSize = 15.sp, color = ink),
+            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-9).dp).background(paper).padding(horizontal = 8.dp),
         )
         }
         menuFor?.let { app -> AppMenu(theme, app, onDismiss = { menuFor = null }) { action ->
@@ -552,12 +560,26 @@ fun Walker(theme: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLa
     }
 }
 
-/** ドラクエのウィンドウ風の枠。黒地に白い太枠。外側にも黒を一周させ、壁紙の上でも枠が立つようにする。 */
-private fun Modifier.spellFrame(): Modifier = this
-    .background(Color.Black, RoundedCornerShape(10.dp))
+/**
+ * ゲームのウィンドウ風の枠。paper の地に ink の太枠。外側にも paper を一周させ、壁紙の上でも枠が立つようにする。
+ * lcd のときは液晶のドットの目を薄く重ねる。
+ */
+private fun Modifier.spellFrame(paper: Color, ink: Color, lcd: Boolean): Modifier = this
+    .background(paper, RoundedCornerShape(10.dp))
     .padding(3.dp)
-    .border(3.dp, Color.White, RoundedCornerShape(7.dp))
+    .border(3.dp, ink, RoundedCornerShape(7.dp))
     .padding(3.dp)
+    .then(if (lcd) Modifier.lcdGrid(ink) else Modifier)
+
+/** ゲームボーイの液晶のドットの目。 */
+private fun Modifier.lcdGrid(ink: Color): Modifier = drawBehind {
+    val step = 3.dp.toPx()
+    val line = ink.copy(alpha = 0.07f)
+    var x = 0f
+    while (x < size.width) { drawLine(line, Offset(x, 0f), Offset(x, size.height), 1f); x += step }
+    var y = 0f
+    while (y < size.height) { drawLine(line, Offset(0f, y), Offset(size.width, y), 1f); y += step }
+}
 
 @Composable
 private fun SectionLabel(t: LauncherTheme, text: String) {
@@ -626,7 +648,7 @@ fun HomeSettings(t: LauncherTheme, onDismiss: () -> Unit) {
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             )
             Spacer(Modifier.height(6.dp))
-            SettingRow(t, Settings.spellSearch, "検索をドラクエ風のウィンドウにする")
+            SettingRow(t, Settings.spellSearch, "検索をゲーム風のウィンドウにする")
         }
     }
 }
