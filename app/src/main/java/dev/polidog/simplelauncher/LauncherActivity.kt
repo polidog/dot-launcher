@@ -29,6 +29,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -62,6 +63,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -181,7 +184,7 @@ fun Launcher(resumes: Int, homePresses: Int) {
     ) {
         Column(Modifier.fillMaxSize()) {
             TopBar(theme, status)
-            Spacer(Modifier.weight(1f))
+            HomeClock(theme, status, Modifier.weight(1f).fillMaxWidth())
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -213,6 +216,20 @@ fun Launcher(resumes: Int, homePresses: Int) {
                 walkerOpen = false
                 Apps.launch(context, app)
             }
+        }
+    }
+}
+
+/** バーと下の一覧のあいだに出す大きな時計。空きが狭いときは出さない。 */
+@Composable
+fun HomeClock(t: LauncherTheme, s: Status, modifier: Modifier = Modifier) {
+    // 壁紙の上でも読めるように影をつける
+    val shadow = Shadow(color = t.background.copy(alpha = 0.8f), offset = Offset(0f, 3f), blurRadius = 8f)
+    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+        if (maxHeight < 140.dp) return@BoxWithConstraints
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            BasicText(s.time, style = TextStyle(fontFamily = Mono, fontSize = 88.sp, color = t.foreground, shadow = shadow))
+            BasicText(s.date, style = TextStyle(fontFamily = Mono, fontSize = 18.sp, color = t.muted, shadow = shadow))
         }
     }
 }
