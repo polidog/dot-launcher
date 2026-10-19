@@ -23,7 +23,8 @@ data class Track(
     val packageName: String,
     val intent: PendingIntent?,
     val playing: Boolean,
-    val controls: MediaController.TransportControls,
+    /** デモ表示のダミーの曲は null（ボタンを押しても何もしない）。 */
+    val controls: MediaController.TransportControls?,
 )
 
 /**
@@ -45,9 +46,9 @@ object NowPlaying {
         return Track(title, artist, c.packageName, c.sessionActivity, playing, c.transportControls)
     }
 
-    fun toggle(track: Track) = if (track.playing) track.controls.pause() else track.controls.play()
-    fun previous(track: Track) = track.controls.skipToPrevious()
-    fun next(track: Track) = track.controls.skipToNext()
+    fun toggle(track: Track) = if (track.playing) track.controls?.pause() else track.controls?.play()
+    fun previous(track: Track) = track.controls?.skipToPrevious()
+    fun next(track: Track) = track.controls?.skipToNext()
 
     /** 再生しているアプリの画面を開く。 */
     fun open(context: Context, track: Track) {

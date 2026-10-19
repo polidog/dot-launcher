@@ -163,11 +163,12 @@ fun Launcher(resumes: Int, homePresses: Int) {
     var settingsOpen by remember { mutableStateOf(false) }
     var noticesGranted by remember { mutableStateOf(true) }
     var categories by remember { mutableStateOf(emptyMap<AppEntry, Category>()) }
-    val track by rememberNowPlaying(noticesGranted)
+    val realTrack by rememberNowPlaying(noticesGranted)
     // 0: ホーム、1: カテゴリ別（左にスワイプで出る）
     val pager = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
     val demo by Demo.enabled
+    val track = if (demo) Demo.track.value else realTrack
     val notices = if (demo) Demo.notices.value else NoticeListener.notices.value
 
     LaunchedEffect(walkerOpen) { if (walkerOpen || apps.isEmpty()) apps = Apps.load(context) }

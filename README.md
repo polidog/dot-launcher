@@ -3,8 +3,8 @@
 シンプルな Android のホームアプリ。見た目は Omarchy（waybar / walker）寄り。Pixel 4a（Android 13）で動作確認。
 
 <p align="center">
-  <img src="docs/demo-dark.gif" width="300" alt="ダークモード（ドラクエ風）。ホームから検索を開き、「chr」で Chrome、履歴の「ちず」で Jev がマップを選び、長押しでメニューを出す">
-  <img src="docs/demo-light.gif" width="300" alt="ライトモード（ゲームボーイポケット風）。ホームから検索を開き、「chr」で Chrome、履歴の「ちず」で Jev がマップを選び、長押しでメニューを出す">
+  <img src="docs/demo-dark-v2.gif" width="300" alt="ダークモード（ドラクエ風）。ホームから検索を開き、「chr」で Chrome、履歴の「ちず」で Jev がマップを選び、長押しでメニューを出す。左にスワイプでカテゴリ別のページ">
+  <img src="docs/demo-light-v2.gif" width="300" alt="ライトモード（ゲームボーイポケット風）。ホームから検索を開き、「chr」で Chrome、履歴の「ちず」で Jev がマップを選び、長押しでメニューを出す。左にスワイプでカテゴリ別のページ">
 </p>
 <p align="center">左がダークモード、右がライトモード（端末の設定に合わせて切り替わる。ホームでも切り替えられる）</p>
 
@@ -43,7 +43,7 @@ TYPESAFE_API_KEY=...
 
 ## デモ表示
 
-README の動画用。debug ビルドだけで効き、通知・検索履歴をダミーに差し替える（本物には触らない）。
+README の動画用。debug ビルドだけで効き、通知・検索履歴・再生中の曲をダミーに差し替える（本物には触らない）。
 
 ```sh
 adb shell am start -n dev.polidog.simplelauncher/.LauncherActivity --ez demo true   # 入る
