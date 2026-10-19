@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -55,6 +56,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -118,6 +120,7 @@ class LauncherActivity : ComponentActivity() {
             hide(WindowInsetsCompat.Type.statusBars())
         }
         Demo.apply(this, intent)
+        Settings.load(this)
         setContent { Launcher(resumes.intValue, homePresses.intValue) }
     }
 
@@ -138,6 +141,7 @@ fun Launcher(resumes: Int, homePresses: Int) {
     var recent by remember { mutableStateOf(emptyList<AppEntry>()) }
     var recentGranted by remember { mutableStateOf(true) }
     var homeMenu by remember { mutableStateOf<AppEntry?>(null) }
+    var settingsOpen by remember { mutableStateOf(false) }
     var noticesGranted by remember { mutableStateOf(true) }
     val demo by Demo.enabled
     val notices = if (demo) Demo.notices.value else NoticeListener.notices.value
@@ -155,8 +159,10 @@ fun Launcher(resumes: Int, homePresses: Int) {
     LaunchedEffect(homePresses) {
         walkerOpen = false
         homeMenu = null
+        settingsOpen = false
     }
     BackHandler(enabled = homeMenu != null) { homeMenu = null }
+    BackHandler(enabled = settingsOpen) { settingsOpen = false }
     // インストール・削除されたら一覧を読み直す
     DisposableEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
@@ -176,7 +182,7 @@ fun Launcher(resumes: Int, homePresses: Int) {
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                detectTapGestures(onTap = { walkerOpen = true })
+                detectTapGestures(onTap = { walkerOpen = true }, onLongPress = { settingsOpen = true })
             }
             .pointerInput(Unit) {
                 detectVerticalDragGestures { _, dragAmount -> if (dragAmount < -12f) walkerOpen = true }
@@ -211,6 +217,7 @@ fun Launcher(resumes: Int, homePresses: Int) {
                 MenuAction.Uninstall -> Apps.uninstall(context, app)
             }
         } }
+        if (settingsOpen) HomeSettings(theme, onDismiss = { settingsOpen = false })
         if (walkerOpen) {
             Walker(theme, apps, onClose = { walkerOpen = false }) { app ->
                 walkerOpen = false
@@ -394,8 +401,16 @@ fun TopBar(t: LauncherTheme, s: Status) {
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Walker(t: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLaunch: (AppEntry) -> Unit) {
+fun Walker(theme: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLaunch: (AppEntry) -> Unit) {
     val context = LocalContext.current
+    val spell by Settings.spellSearch
+    // ドラクエ風のときは黒地に白で描く
+    val t = if (spell) theme.copy(
+        background = Color.Black, foreground = Color.White, muted = Color.White.copy(alpha = 0.55f),
+        accent = Color.White, selectionBg = Color.Transparent, selectionFg = Color.White,
+    ) else theme
+    var blink by remember { mutableStateOf(true) }
+    LaunchedEffect(spell) { while (spell) { delay(450); blink = !blink } }
     var field by remember { mutableStateOf(TextFieldValue("")) }
     val query = field.text
     var history by remember { mutableStateOf(SearchHistory.load(context)) }
@@ -442,17 +457,16 @@ fun Walker(t: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLaunch
             .navigationBarsPadding()
             .imePadding(),
     ) {
+        Box(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 56.dp)) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 56.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(t.background)
+                .then(if (spell) Modifier.spellFrame() else Modifier.clip(RoundedCornerShape(6.dp)).background(t.background))
                 .pointerInput(Unit) { detectTapGestures(onTap = { }) }
                 .padding(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                BasicText("❯ ", style = TextStyle(fontFamily = Icons, fontSize = 20.sp, color = t.accent))
+                if (!spell) BasicText("❯ ", style = TextStyle(fontFamily = Icons, fontSize = 20.sp, color = t.accent))
                 BasicTextField(
                     value = field,
                     onValueChange = { field = it },
@@ -463,7 +477,7 @@ fun Walker(t: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLaunch
                     keyboardActions = KeyboardActions(onGo = { results.getOrNull(selected)?.let(launch) }),
                     modifier = Modifier.weight(1f).focusRequester(focus),
                     decorationBox = { inner ->
-                        if (query.isEmpty()) BasicText("Search…", style = TextStyle(fontFamily = Mono, fontSize = 20.sp, color = t.muted))
+                        if (query.isEmpty()) BasicText(if (spell) "アプリを さがす" else "Search…", style = TextStyle(fontFamily = Mono, fontSize = 20.sp, color = t.muted))
                         inner()
                     },
                 )
@@ -472,7 +486,7 @@ fun Walker(t: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLaunch
             Spacer(Modifier.height(10.dp))
             LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 if (query.isEmpty() && history.isNotEmpty()) {
-                    item(key = "history-label") { SectionLabel(t, "history") }
+                    item(key = "history-label") { SectionLabel(t, if (spell) "りれき" else "history") }
                     items(history, key = { "history:$it" }) { h ->
                         Row(
                             Modifier
@@ -488,7 +502,7 @@ fun Walker(t: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLaunch
                             BasicText(h, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(fontFamily = Mono, fontSize = 17.sp, color = t.foreground))
                         }
                     }
-                    item(key = "apps-label") { SectionLabel(t, "apps") }
+                    item(key = "apps-label") { SectionLabel(t, if (spell) "アプリ" else "apps") }
                 }
                 items(results, key = { it.packageName + it.activity }) { app ->
                     val isSel = results.indexOf(app) == selected
@@ -502,6 +516,11 @@ fun Walker(t: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLaunch
                             .padding(horizontal = 10.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        if (spell) BasicText(
+                            text = if (isSel && blink) "▶" else "",
+                            style = TextStyle(fontFamily = Mono, fontSize = 15.sp, color = t.foreground),
+                            modifier = Modifier.width(22.dp),
+                        )
                         BasicText(
                             text = app.label,
                             maxLines = 1,
@@ -517,7 +536,13 @@ fun Walker(t: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLaunch
                 }
             }
         }
-        menuFor?.let { app -> AppMenu(t, app, onDismiss = { menuFor = null }) { action ->
+        if (spell) BasicText(
+            "アプリ検索",
+            style = TextStyle(fontFamily = Mono, fontSize = 15.sp, color = Color.White),
+            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-9).dp).background(Color.Black).padding(horizontal = 8.dp),
+        )
+        }
+        menuFor?.let { app -> AppMenu(theme, app, onDismiss = { menuFor = null }) { action ->
             menuFor = null
             when (action) {
                 MenuAction.Info -> Apps.openInfo(context, app)
@@ -526,6 +551,13 @@ fun Walker(t: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLaunch
         } }
     }
 }
+
+/** ドラクエのウィンドウ風の枠。黒地に白い太枠。外側にも黒を一周させ、壁紙の上でも枠が立つようにする。 */
+private fun Modifier.spellFrame(): Modifier = this
+    .background(Color.Black, RoundedCornerShape(10.dp))
+    .padding(3.dp)
+    .border(3.dp, Color.White, RoundedCornerShape(7.dp))
+    .padding(3.dp)
 
 @Composable
 private fun SectionLabel(t: LauncherTheme, text: String) {
@@ -566,6 +598,44 @@ fun AppMenu(t: LauncherTheme, app: AppEntry, onDismiss: () -> Unit, onAction: (M
             if (app.removable) MenuRow(t, "󰆴", "アンインストール", t.red) { onAction(MenuAction.Uninstall) }
         }
     }
+}
+
+/** ホームの何もないところを長押しで出る設定。 */
+@Composable
+fun HomeSettings(t: LauncherTheme, onDismiss: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(t.background.copy(alpha = 0.6f))
+            .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) },
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 18.dp, vertical = 18.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(t.background)
+                .pointerInput(Unit) { detectTapGestures(onTap = { }) }
+                .padding(14.dp),
+        ) {
+            BasicText(
+                text = "settings",
+                style = TextStyle(fontFamily = Mono, fontSize = 15.sp, color = t.muted),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+            Spacer(Modifier.height(6.dp))
+            SettingRow(t, Settings.spellSearch, "検索をドラクエ風のウィンドウにする")
+        }
+    }
+}
+
+@Composable
+private fun SettingRow(t: LauncherTheme, state: MutableState<Boolean>, label: String) {
+    val context = LocalContext.current
+    val on by state
+    MenuRow(t, if (on) "󰄲" else "󰄱", label, if (on) t.foreground else t.muted) { Settings.set(context, state, !on) }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
