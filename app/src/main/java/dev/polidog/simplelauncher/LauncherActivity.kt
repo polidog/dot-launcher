@@ -1,0 +1,578 @@
+package dev.polidog.simplelauncher
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.BasicText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
+
+/** 文字はドット絵の DotGothic16。 */
+val Mono = FontFamily(Font(R.font.dotgothic16, FontWeight.Normal))
+
+/** Nerd Font のアイコンは DotGothic16 に無いので UDEV Gothic NF で描く。 */
+val Icons = FontFamily(
+    Font(R.font.udev_gothic_nf, FontWeight.Normal),
+    Font(R.font.udev_gothic_nf_bold, FontWeight.Bold),
+)
+
+class LauncherActivity : ComponentActivity() {
+    /** ホームに戻るたびに増やす。最近のアプリ・予定・許可状態の読み直しに使う。 */
+    private val resumes = mutableIntStateOf(0)
+
+    override fun onResume() {
+        super.onResume()
+        resumes.intValue++
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.statusBars())
+        }
+        setContent { Launcher(resumes.intValue) }
+    }
+}
+
+@Composable
+fun Launcher(resumes: Int) {
+    val context = LocalContext.current
+    val theme = remember { LauncherTheme.load(context) }
+    val status by rememberStatus()
+    var apps by remember { mutableStateOf(emptyList<AppEntry>()) }
+    var walkerOpen by remember { mutableStateOf(false) }
+    var recent by remember { mutableStateOf(emptyList<AppEntry>()) }
+    var recentGranted by remember { mutableStateOf(true) }
+    var homeMenu by remember { mutableStateOf<AppEntry?>(null) }
+    var agenda by remember { mutableStateOf<Agenda?>(null) }
+    var calendarGranted by remember { mutableStateOf(true) }
+    var noticesGranted by remember { mutableStateOf(true) }
+    val notices by NoticeListener.notices
+    val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        calendarGranted = ok
+    }
+
+    LaunchedEffect(walkerOpen) { if (walkerOpen || apps.isEmpty()) apps = Apps.load(context) }
+    LaunchedEffect(resumes, apps) {
+        recentGranted = Recent.granted(context)
+        if (recentGranted && apps.isNotEmpty()) recent = withContext(Dispatchers.IO) { Recent.load(context, apps) }
+    }
+    LaunchedEffect(resumes) {
+        noticesGranted = NoticeListener.granted(context)
+        withContext(Dispatchers.IO) { JevSearch.warmUp() }
+    }
+    // 時刻が進むたびに次の予定を取り直す
+    LaunchedEffect(resumes, status.time, calendarGranted) {
+        calendarGranted = Agendas.granted(context)
+        if (calendarGranted) agenda = withContext(Dispatchers.IO) { Agendas.next(context) }
+    }
+    BackHandler(enabled = walkerOpen) { walkerOpen = false }
+    BackHandler(enabled = homeMenu != null) { homeMenu = null }
+    // インストール・削除されたら一覧を読み直す
+    DisposableEffect(Unit) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) { apps = Apps.load(context) }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addDataScheme("package")
+        }
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
+        onDispose { context.unregisterReceiver(receiver) }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { walkerOpen = true })
+            }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { _, dragAmount -> if (dragAmount < -12f) walkerOpen = true }
+            }
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            TopBar(theme, status, agenda)
+            Spacer(Modifier.weight(1f))
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 18.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (!calendarGranted) Hint(theme, "カレンダーを許可すると、次の予定が上に出ます") {
+                    calendarPermission.launch(Manifest.permission.READ_CALENDAR)
+                }
+                if (!noticesGranted) Hint(theme, "通知へのアクセスを許可すると、通知がここに出ます") { NoticeListener.requestAccess(context) }
+                if (!recentGranted) Hint(theme, "使用状況へのアクセスを許可すると、最近のアプリが出ます") { Recent.requestAccess(context) }
+                if (noticesGranted) Notices(theme, notices.take(4),
+                    onOpen = { NoticeListener.open(context, it) },
+                    onDismiss = { NoticeListener.dismiss(it) })
+                RecentApps(theme, recent,
+                    onLaunch = { Apps.launch(context, it) },
+                    onMenu = { homeMenu = it })
+            }
+        }
+        homeMenu?.let { app -> AppMenu(theme, app, onDismiss = { homeMenu = null }) { action ->
+            homeMenu = null
+            when (action) {
+                MenuAction.Info -> Apps.openInfo(context, app)
+                MenuAction.Uninstall -> Apps.uninstall(context, app)
+            }
+        } }
+        if (walkerOpen) {
+            Walker(theme, apps, onClose = { walkerOpen = false }) { app ->
+                walkerOpen = false
+                Apps.launch(context, app)
+            }
+        }
+    }
+}
+
+/** ホーム下部の最近のアプリ。タップで切り替え、長押しで操作メニュー。 */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun RecentApps(
+    t: LauncherTheme,
+    recent: List<AppEntry>,
+    onLaunch: (AppEntry) -> Unit,
+    onMenu: (AppEntry) -> Unit,
+) {
+    if (recent.isEmpty()) return
+    val style = TextStyle(fontFamily = Mono, fontSize = 17.sp, color = t.foreground)
+    Column(Modifier.fillMaxWidth()) {
+        BasicText("recent", style = style.copy(fontSize = 13.sp, color = t.muted), modifier = Modifier.padding(start = 10.dp, bottom = 4.dp))
+        Column(
+            Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(t.background.copy(alpha = 0.72f))
+                .padding(4.dp),
+        ) {
+            for (app in recent) {
+                BasicText(
+                    text = app.label,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = style,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp))
+                        .combinedClickable(onLongClick = { onMenu(app) }) { onLaunch(app) }
+                        .padding(horizontal = 10.dp, vertical = 9.dp),
+                )
+            }
+        }
+    }
+}
+
+/** 許可を求める一行。タップで許可の画面へ。 */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun Hint(t: LauncherTheme, text: String, onClick: () -> Unit) {
+    BasicText(
+        text = text,
+        style = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = t.muted),
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(t.background.copy(alpha = 0.72f))
+            .combinedClickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+    )
+}
+
+/** 届いている通知。タップで元のアプリを開き、横にスワイプで消す。 */
+@Composable
+fun Notices(t: LauncherTheme, notices: List<Notice>, onOpen: (Notice) -> Unit, onDismiss: (Notice) -> Unit) {
+    if (notices.isEmpty()) return
+    val hm = remember { SimpleDateFormat("HH:mm", Locale.US) }
+    Column(Modifier.fillMaxWidth()) {
+        BasicText("notifications", style = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = t.muted), modifier = Modifier.padding(start = 10.dp, bottom = 4.dp))
+        Column(
+            Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(t.background.copy(alpha = 0.72f))
+                .padding(4.dp),
+        ) {
+            for (n in notices) {
+                androidx.compose.runtime.key(n.key) {
+                    NoticeRow(t, n, hm.format(Date(n.time)), onOpen, onDismiss)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun NoticeRow(t: LauncherTheme, n: Notice, time: String, onOpen: (Notice) -> Unit, onDismiss: (Notice) -> Unit) {
+    var dx by remember { mutableFloatStateOf(0f) }
+    val threshold = with(LocalDensity.current) { 96.dp.toPx() }
+    val small = TextStyle(fontFamily = Mono, fontSize = 12.sp, color = t.muted)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .offset { IntOffset(dx.roundToInt(), 0) }
+            .pointerInput(n.key) {
+                detectHorizontalDragGestures(
+                    onDragEnd = { if (abs(dx) > threshold) onDismiss(n) else dx = 0f },
+                    onDragCancel = { dx = 0f },
+                ) { _, amount -> dx += amount }
+            }
+            .clip(RoundedCornerShape(4.dp))
+            .combinedClickable { onOpen(n) }
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+    ) {
+        Row {
+            BasicText(n.app, maxLines = 1, overflow = TextOverflow.Ellipsis, style = small, modifier = Modifier.weight(1f))
+            BasicText(time, style = small)
+        }
+        val body = listOf(n.title, n.text).filter { it.isNotBlank() }
+        BasicText(
+            text = body.first(),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = TextStyle(fontFamily = Mono, fontSize = 16.sp, color = t.foreground),
+        )
+        if (body.size > 1) BasicText(
+            text = body[1],
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = TextStyle(fontFamily = Mono, fontSize = 14.sp, color = t.muted),
+        )
+    }
+}
+
+/** waybar 風の一行バー。次の予定があれば下にもう一行。 */
+@Composable
+fun TopBar(t: LauncherTheme, s: Status, next: Agenda?) {
+    val style = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = t.foreground)
+    // パンチホール: 上端に食い込む切り欠きの右端まで左を空け、バーの高さは切り欠きの高さに合わせる
+    val view = LocalView.current
+    val density = LocalDensity.current
+    val cutout = view.rootWindowInsets?.displayCutout
+    val holeRight = cutout?.boundingRects
+        ?.filter { it.top <= cutout.safeInsetTop }
+        ?.maxOfOrNull { it.right } ?: 0
+    val cutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
+    val startPad = with(density) { holeRight.toDp() } + 14.dp
+    Column(Modifier.fillMaxWidth().background(t.background.copy(alpha = 0.92f))) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = if (cutoutTop > 0.dp) cutoutTop else 0.dp)
+            .padding(start = startPad, end = 14.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BasicText(text = s.time, style = style.copy(fontWeight = FontWeight.Bold))
+        BasicText(text = "  ${s.date}", style = style.copy(color = t.muted))
+        Spacer(Modifier.weight(1f))
+        val net = when { s.wifi -> "󰖩"; s.cell -> "󰤨"; else -> "󰖪" }
+        BasicText(text = net, style = style.copy(fontFamily = Icons))
+        Spacer(Modifier.width(10.dp))
+        val bat = when {
+            s.battery < 0 -> "󰂑"
+            s.charging -> "󰂄"
+            s.battery > 80 -> "󰁹"; s.battery > 60 -> "󰂀"; s.battery > 40 -> "󰁾"; s.battery > 20 -> "󰁼"
+            else -> "󰁺"
+        }
+        val batColor = if (s.battery in 0..15 && !s.charging) t.red else t.foreground
+        BasicText(text = "$bat ", style = style.copy(fontFamily = Icons, color = batColor))
+        if (s.battery >= 0) BasicText(text = "${s.battery}%", style = style.copy(color = batColor))
+    }
+    if (next != null) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 6.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BasicText("󰃭 ", style = style.copy(fontFamily = Icons, color = t.accent))
+            BasicText(next.label(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = style)
+        }
+    }
+    }
+}
+
+/**
+ * walker 風のランチャー。文字を打つと絞り込み、Enter か行タップで起動。長押しで操作メニュー。
+ * 先頭一致・単語頭一致が無いときは、手が止まってから Jev に意味で選ばせて差し込む。
+ * 何も打っていないときは、アプリを開くのに使った検索語の履歴を上に出す（タップで再検索、長押しで消す）。
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun Walker(t: LauncherTheme, apps: List<AppEntry>, onClose: () -> Unit, onLaunch: (AppEntry) -> Unit) {
+    val context = LocalContext.current
+    var field by remember { mutableStateOf(TextFieldValue("")) }
+    val query = field.text
+    var history by remember { mutableStateOf(SearchHistory.load(context)) }
+    // 打った言葉で開いたら履歴に残す
+    val launch: (AppEntry) -> Unit = { app ->
+        if (query.isNotBlank()) history = SearchHistory.add(context, query)
+        onLaunch(app)
+    }
+    var selected by remember { mutableStateOf(0) }
+    var menuFor by remember { mutableStateOf<AppEntry?>(null) }
+    val focus = remember { FocusRequester() }
+    val local = remember(query, apps) { Apps.scored(apps, query) }
+    var jev by remember { mutableStateOf<JevSearch.Result?>(null) }
+    var jevBusy by remember { mutableStateOf(false) }
+    LaunchedEffect(query, apps) {
+        jev = null
+        val q = query.trim()
+        if (!JevSearch.available || q.length < 2 || local.any { it.first <= 1 }) return@LaunchedEffect
+        delay(400)
+        jevBusy = true
+        try {
+            jev = withContext(Dispatchers.IO) { JevSearch.search(apps, q) }
+        } finally {
+            jevBusy = false
+        }
+    }
+    // 強い一致 > Jev の候補 > 弱い一致
+    val jevApps = jev?.apps?.map { it.first }.orEmpty()
+    val results = remember(local, jevApps) {
+        (local.filter { it.first <= 1 }.map { it.second } + jevApps + local.map { it.second }).distinct()
+    }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    LaunchedEffect(results) { selected = 0 }
+    // 削除されたアプリのメニューは閉じる
+    LaunchedEffect(apps) { if (menuFor != null && menuFor !in apps) menuFor = null }
+    BackHandler(enabled = menuFor != null) { menuFor = null }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(t.background.copy(alpha = 0.72f))
+            .pointerInput(Unit) { detectTapGestures(onTap = { onClose() }) }
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding(),
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 56.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(t.background)
+                .pointerInput(Unit) { detectTapGestures(onTap = { }) }
+                .padding(14.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BasicText("❯ ", style = TextStyle(fontFamily = Icons, fontSize = 20.sp, color = t.accent))
+                BasicTextField(
+                    value = field,
+                    onValueChange = { field = it },
+                    singleLine = true,
+                    textStyle = TextStyle(fontFamily = Mono, fontSize = 20.sp, color = t.foreground),
+                    cursorBrush = SolidColor(t.accent),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, autoCorrectEnabled = false, imeAction = ImeAction.Go),
+                    keyboardActions = KeyboardActions(onGo = { results.getOrNull(selected)?.let(launch) }),
+                    modifier = Modifier.weight(1f).focusRequester(focus),
+                    decorationBox = { inner ->
+                        if (query.isEmpty()) BasicText("Search…", style = TextStyle(fontFamily = Mono, fontSize = 20.sp, color = t.muted))
+                        inner()
+                    },
+                )
+                if (jevBusy) BasicText("󰚩", style = TextStyle(fontFamily = Icons, fontSize = 15.sp, color = t.muted))
+            }
+            Spacer(Modifier.height(10.dp))
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                if (query.isEmpty() && history.isNotEmpty()) {
+                    item(key = "history-label") { SectionLabel(t, "history") }
+                    items(history, key = { "history:$it" }) { h ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(4.dp))
+                                .combinedClickable(onLongClick = { history = SearchHistory.remove(context, h) }) {
+                                    field = TextFieldValue(h, TextRange(h.length))
+                                }
+                                .padding(horizontal = 10.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            BasicText("󰋚  ", style = TextStyle(fontFamily = Icons, fontSize = 15.sp, color = t.muted))
+                            BasicText(h, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(fontFamily = Mono, fontSize = 17.sp, color = t.foreground))
+                        }
+                    }
+                    item(key = "apps-label") { SectionLabel(t, "apps") }
+                }
+                items(results, key = { it.packageName + it.activity }) { app ->
+                    val isSel = results.indexOf(app) == selected
+                    val fromJev = app in jevApps
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (isSel) t.selectionBg else Color.Transparent)
+                            .combinedClickable(onLongClick = { menuFor = app }) { launch(app) }
+                            .padding(horizontal = 10.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        BasicText(
+                            text = app.label,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = TextStyle(
+                                fontFamily = Mono, fontSize = 17.sp,
+                                color = if (isSel) t.selectionFg else t.foreground,
+                            ),
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (fromJev) BasicText("󰚩", style = TextStyle(fontFamily = Icons, fontSize = 15.sp, color = if (isSel) t.selectionFg else t.accent))
+                    }
+                }
+            }
+        }
+        menuFor?.let { app -> AppMenu(t, app, onDismiss = { menuFor = null }) { action ->
+            menuFor = null
+            when (action) {
+                MenuAction.Info -> Apps.openInfo(context, app)
+                MenuAction.Uninstall -> Apps.uninstall(context, app)
+            }
+        } }
+    }
+}
+
+@Composable
+private fun SectionLabel(t: LauncherTheme, text: String) {
+    BasicText(text, style = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = t.muted), modifier = Modifier.padding(start = 10.dp, top = 6.dp, bottom = 2.dp))
+}
+
+enum class MenuAction { Info, Uninstall }
+
+/** 長押ししたアプリへの操作。画面下に出す。 */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun AppMenu(t: LauncherTheme, app: AppEntry, onDismiss: () -> Unit, onAction: (MenuAction) -> Unit) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(t.background.copy(alpha = 0.6f))
+            .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) },
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 18.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(t.background)
+                .pointerInput(Unit) { detectTapGestures(onTap = { }) }
+                .padding(14.dp),
+        ) {
+            BasicText(
+                text = app.label,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(fontFamily = Mono, fontSize = 15.sp, color = t.muted),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+            Spacer(Modifier.height(6.dp))
+            MenuRow(t, "󰋽", "アプリ情報", t.foreground) { onAction(MenuAction.Info) }
+            if (app.removable) MenuRow(t, "󰆴", "アンインストール", t.red) { onAction(MenuAction.Uninstall) }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MenuRow(t: LauncherTheme, icon: String, label: String, color: Color, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .combinedClickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BasicText("$icon  ", style = TextStyle(fontFamily = Icons, fontSize = 17.sp, color = color))
+        BasicText(label, style = TextStyle(fontFamily = Mono, fontSize = 17.sp, color = color))
+    }
+}
