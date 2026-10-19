@@ -45,4 +45,6 @@ adb shell am force-stop dev.polidog.simplelauncher
 | `Agenda.kt` | カレンダーから次の予定を引く |
 | `Notices.kt` | 通知を受け取る NotificationListenerService |
 
-フォントはどちらも SIL Open Font License 1.1。DotGothic16 は `licenses/DotGothic16-OFL.txt`、UDEV Gothic NF は `licenses/UDEVGothic-LICENSE.txt`。
+## ライセンス
+
+MIT（`LICENSE`）。同梱のフォントはどちらも SIL Open Font License 1.1。DotGothic16 は `licenses/DotGothic16-OFL.txt`、UDEV Gothic NF は `licenses/UDEVGothic-LICENSE.txt`。
