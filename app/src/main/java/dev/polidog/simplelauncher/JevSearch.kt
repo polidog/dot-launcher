@@ -22,6 +22,7 @@ object JevSearch {
     private const val CONNECT_TIMEOUT_MS = 1500
     private const val WARM_INTERVAL_MS = 5 * 60 * 1000L
     private const val ENDPOINT = "https://api.typesafe.ai/v1/systemone"
+    const val MODEL = "jev-1.14.0"
     @Volatile private var lastWarmMs = 0L
 
     // ponytail: キーは APK から取り出せる。人に配るときは中継サーバーへ
@@ -55,6 +56,20 @@ object JevSearch {
             setRequestProperty("Authorization", "Bearer ${BuildConfig.TYPESAFE_API_KEY}")
         }
 
+    /** body を送って返事の JSON を返す。HTTP が 200 でなければ null、通信の失敗は投げる。IO スレッドから。 */
+    fun post(body: String): JSONObject? {
+        // disconnect() はしない。読み切った接続は次のリクエストで使い回される
+        val conn = open("POST")
+        conn.doOutput = true
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.outputStream.use { it.write(body.toByteArray()) }
+        if (conn.responseCode != 200) {
+            Log.w("JevSearch", "HTTP ${conn.responseCode}: ${conn.errorStream?.bufferedReader()?.use { it.readText() }}")
+            return null
+        }
+        return JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+    }
+
     /** 通信するので IO スレッドから呼ぶ。失敗したら null。 */
     fun search(apps: List<AppEntry>, query: String): Result? {
         val q = query.trim()
@@ -67,7 +82,7 @@ object JevSearch {
         candidates.forEachIndexed { i, app -> list.put(JSONObject().put("id", ids[i]).put("name", app.label).put("package", app.packageName)) }
         val criteria = JSONObject().apply { ids.forEach { put(it, JSONObject.NULL) } }
         val body = JSONObject()
-            .put("model", "jev-1.14.0")
+            .put("model", MODEL)
             .put("state", JSONObject()
                 .put("query", q)
                 .put("context", "Android のホーム画面のアプリ検索欄に `query` が打たれた。`apps` は端末に入っているアプリ。")
@@ -83,17 +98,8 @@ object JevSearch {
             .toString()
 
         val start = SystemClock.uptimeMillis()
-        // disconnect() はしない。読み切った接続は次の検索で使い回される
         try {
-            val conn = open("POST")
-            conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.outputStream.use { it.write(body.toByteArray()) }
-            if (conn.responseCode != 200) {
-                Log.w("JevSearch", "HTTP ${conn.responseCode}: ${conn.errorStream?.bufferedReader()?.use { it.readText() }}")
-                return null
-            }
-            val res = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+            val res = post(body) ?: return null
             val rtt = SystemClock.uptimeMillis() - start
             val answers = res.getJSONObject("answers")
             val exists = answers.getJSONObject("exists").getDouble("noul").toFloat()

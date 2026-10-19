@@ -8,8 +8,11 @@ import android.net.Uri
 import android.provider.Settings
 import java.text.Normalizer
 
-/** removable: 端末から消せるか（プリインストールのシステムアプリは消せない）。 */
-data class AppEntry(val label: String, val packageName: String, val activity: String, val removable: Boolean) {
+/**
+ * removable: 端末から消せるか（プリインストールのシステムアプリは消せない）。
+ * category: アプリの作者が申告したカテゴリ（ApplicationInfo.CATEGORY_*）。申告が無ければ CATEGORY_UNDEFINED。
+ */
+data class AppEntry(val label: String, val packageName: String, val activity: String, val removable: Boolean, val category: Int) {
     val key: String = Apps.normalize(label)
 }
 
@@ -20,9 +23,9 @@ object Apps {
         return pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
             .filter { it.activityInfo.packageName != context.packageName }
             .map {
-                val flags = it.activityInfo.applicationInfo.flags
-                val system = flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == ApplicationInfo.FLAG_SYSTEM
-                AppEntry(it.loadLabel(pm).toString(), it.activityInfo.packageName, it.activityInfo.name, removable = !system)
+                val info = it.activityInfo.applicationInfo
+                val system = info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == ApplicationInfo.FLAG_SYSTEM
+                AppEntry(it.loadLabel(pm).toString(), it.activityInfo.packageName, it.activityInfo.name, removable = !system, category = info.category)
             }
             // 起動口が複数あって名前も同じもの（東海道五十三次など）は見分けがつかないので 1 つにする
             .distinctBy { it.packageName to it.label }

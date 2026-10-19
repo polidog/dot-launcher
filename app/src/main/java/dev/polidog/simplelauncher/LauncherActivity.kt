@@ -46,6 +46,13 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -59,6 +66,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,6 +95,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.BasicText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -152,6 +161,10 @@ fun Launcher(resumes: Int, homePresses: Int) {
     var homeMenu by remember { mutableStateOf<AppEntry?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
     var noticesGranted by remember { mutableStateOf(true) }
+    var categories by remember { mutableStateOf(emptyMap<AppEntry, Category>()) }
+    // 0: ホーム、1: カテゴリ別（左にスワイプで出る）
+    val pager = rememberPagerState { 2 }
+    val scope = rememberCoroutineScope()
     val demo by Demo.enabled
     val notices = if (demo) Demo.notices.value else NoticeListener.notices.value
 
@@ -159,6 +172,11 @@ fun Launcher(resumes: Int, homePresses: Int) {
     LaunchedEffect(resumes, apps) {
         recentGranted = Recent.granted(context)
         if (recentGranted && apps.isNotEmpty()) recent = withContext(Dispatchers.IO) { Recent.load(context, apps) }
+    }
+    // 申告で分かるぶんを先に出し、残りは Jev に聞いてから出し直す
+    LaunchedEffect(apps) {
+        categories = Categories.load(context, apps)
+        if (withContext(Dispatchers.IO) { Categories.classify(context, apps) }) categories = Categories.load(context, apps)
     }
     LaunchedEffect(resumes) {
         noticesGranted = NoticeListener.granted(context)
@@ -169,7 +187,9 @@ fun Launcher(resumes: Int, homePresses: Int) {
         walkerOpen = false
         homeMenu = null
         settingsOpen = false
+        pager.animateScrollToPage(0)
     }
+    BackHandler(enabled = pager.currentPage != 0) { scope.launch { pager.animateScrollToPage(0) } }
     BackHandler(enabled = homeMenu != null) { homeMenu = null }
     BackHandler(enabled = settingsOpen) { settingsOpen = false }
     // インストール・削除されたら一覧を読み直す
@@ -193,31 +213,40 @@ fun Launcher(resumes: Int, homePresses: Int) {
             // 壁紙は隠してテーマの背景色で塗る。ライトモードは画面ごとゲームボーイの液晶にする
             .background(theme.background)
             .then(if (dark) Modifier else Modifier.lcdGrid(theme.foreground))
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = { walkerOpen = true }, onLongPress = { settingsOpen = true })
-            }
-            .pointerInput(Unit) {
-                detectVerticalDragGestures { _, dragAmount -> if (dragAmount < -12f) walkerOpen = true }
-            }
     ) {
         Column(Modifier.fillMaxSize()) {
             TopBar(theme, status, dark, onToggleDark = { Settings.setDarkMode(context, !dark) })
-            HomeClock(theme, status, Modifier.weight(1f).fillMaxWidth())
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 18.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                if (!noticesGranted && !demo) Hint(theme, "通知へのアクセスを許可すると、通知がここに出ます") { NoticeListener.requestAccess(context) }
-                if (!recentGranted && !demo) Hint(theme, "使用状況へのアクセスを許可すると、最近のアプリが出ます") { Recent.requestAccess(context) }
-                if (noticesGranted || demo) Notices(theme, notices.take(4),
-                    onOpen = { NoticeListener.open(context, it) },
-                    onDismiss = { n ->
-                        if (demo) Demo.notices.value = Demo.notices.value - n else NoticeListener.dismiss(n)
-                    })
-                RecentApps(theme, recent,
+            HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth()) { page ->
+                if (page == 0) Column(
+                    Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = { walkerOpen = true }, onLongPress = { settingsOpen = true })
+                        }
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures { _, dragAmount -> if (dragAmount < -12f) walkerOpen = true }
+                        }
+                ) {
+                    HomeClock(theme, status, Modifier.weight(1f).fillMaxWidth())
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 18.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        if (!noticesGranted && !demo) Hint(theme, "通知へのアクセスを許可すると、通知がここに出ます") { NoticeListener.requestAccess(context) }
+                        if (!recentGranted && !demo) Hint(theme, "使用状況へのアクセスを許可すると、最近のアプリが出ます") { Recent.requestAccess(context) }
+                        if (noticesGranted || demo) Notices(theme, notices.take(4),
+                            onOpen = { NoticeListener.open(context, it) },
+                            onDismiss = { n ->
+                                if (demo) Demo.notices.value = Demo.notices.value - n else NoticeListener.dismiss(n)
+                            })
+                        RecentApps(theme, recent,
+                            onLaunch = { Apps.launch(context, it) },
+                            onMenu = { homeMenu = it })
+                    }
+                } else CategoryApps(theme, categories,
                     onLaunch = { Apps.launch(context, it) },
                     onMenu = { homeMenu = it })
             }
@@ -286,6 +315,85 @@ fun RecentApps(
                 )
             }
         }
+    }
+}
+
+/**
+ * ホームの右のページ。カテゴリごとに検索と同じ枠の箱に入れ、2 列に詰めて並べる。
+ * タップで起動、長押しで操作メニュー。
+ */
+@Composable
+fun CategoryApps(
+    t: LauncherTheme,
+    categories: Map<AppEntry, Category>,
+    onLaunch: (AppEntry) -> Unit,
+    onMenu: (AppEntry) -> Unit,
+) {
+    val groups = remember(categories) {
+        categories.entries.groupBy({ it.value }, { it.key })
+            .mapValues { (_, apps) -> apps.sortedBy { it.key } }
+            .toSortedMap()
+            .entries.toList()
+    }
+    // 箱の高さはアプリの数で違うので、列ごとに詰める
+    LazyVerticalStaggeredGrid(
+        columns = StaggeredGridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize(),
+        // 上は箱の見出しが枠からはみ出すぶん空ける
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 20.dp, bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalItemSpacing = 20.dp,
+    ) {
+        items(groups, key = { it.key.name }) { (category, apps) ->
+            CategoryBox(t, category, apps, onLaunch, onMenu)
+        }
+    }
+}
+
+/** カテゴリ 1 つぶんの箱。見た目は検索のウィンドウに揃える（ゲーム風なら見出しを枠の上辺に載せる）。 */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CategoryBox(
+    theme: LauncherTheme,
+    category: Category,
+    apps: List<AppEntry>,
+    onLaunch: (AppEntry) -> Unit,
+    onMenu: (AppEntry) -> Unit,
+) {
+    val spell by Settings.spellSearch
+    val dark = isDark()
+    val paper = if (dark) Color.Black else theme.background
+    val ink = if (dark) Color.White else theme.foreground
+    val fg = if (spell) ink else theme.foreground
+    val muted = if (spell) ink.copy(alpha = 0.55f) else theme.muted
+    Box(Modifier.fillMaxWidth()) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (spell) Modifier.spellFrame(paper, ink, lcd = !dark) else Modifier.clip(RoundedCornerShape(6.dp)).background(theme.background))
+                .padding(start = 4.dp, end = 4.dp, top = if (spell) 12.dp else 6.dp, bottom = 4.dp),
+        ) {
+            if (!spell) BasicText(category.label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = muted), modifier = Modifier.padding(start = 8.dp, bottom = 2.dp))
+            for (app in apps) {
+                BasicText(
+                    text = app.label,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(fontFamily = Mono, fontSize = 15.sp, color = fg),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp))
+                        .combinedClickable(onLongClick = { onMenu(app) }) { onLaunch(app) }
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                )
+            }
+        }
+        if (spell) BasicText(
+            category.label,
+            maxLines = 1,
+            style = TextStyle(fontFamily = Mono, fontSize = 14.sp, color = ink),
+            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-9).dp).background(paper).padding(horizontal = 6.dp),
+        )
     }
 }
 
