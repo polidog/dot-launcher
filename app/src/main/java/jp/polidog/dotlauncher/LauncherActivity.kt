@@ -838,6 +838,7 @@ fun HomeSettings(t: LauncherTheme, onDismiss: () -> Unit) {
             SettingRow(t, Settings.spellSearch, "検索をゲーム風のウィンドウにする")
             FollowSystemRow(t)
             JevKeyRow(t)
+            HomeAppRow(t)
         }
     }
 }
@@ -906,6 +907,25 @@ private fun FollowSystemRow(t: LauncherTheme) {
     val dark = isDark()
     MenuRow(t, if (follow) "󰄲" else "󰄱", "明暗を端末の設定に合わせる", if (follow) t.foreground else t.muted) {
         Settings.setDarkMode(context, if (follow) dark else null)
+    }
+}
+
+/**
+ * ホームアプリを変える（このランチャーをやめる）。アプリから自分を外すことはできないので、端末のホームアプリの選択画面を開く。
+ * その画面が無い端末では「デフォルトのアプリ」を開く。
+ */
+@Composable
+private fun HomeAppRow(t: LauncherTheme) {
+    val context = LocalContext.current
+    MenuRow(t, "󰋜", "ホームアプリを変える", t.foreground) {
+        val actions = listOf(android.provider.Settings.ACTION_HOME_SETTINGS, android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)
+        for (action in actions) {
+            try {
+                context.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return@MenuRow
+            } catch (_: android.content.ActivityNotFoundException) {
+            }
+        }
     }
 }
 
