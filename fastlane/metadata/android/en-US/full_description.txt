@@ -13,7 +13,7 @@ A home screen app with no icon grid, just text. The home screen shows a big pixe
 ・Swipe left for a page of all apps grouped by category (Social, Work, Maps & Travel, Games, ...)
 
 ■ Look
-・Light mode looks like a Game Boy Pocket LCD; dark mode is a black game-style window with a white frame
+・Light mode looks like a 4-shade handheld console LCD; dark mode is a black game-style window with a white frame
 ・Toggle light/dark from the top-left corner, or follow the system setting
 
 ■ Jev (optional, bring your own API key)

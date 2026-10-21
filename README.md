@@ -15,7 +15,7 @@ A simple Android home app, styled after Omarchy (waybar / walker). Tested on a P
 - Typing filters apps (prefix > word-start > substring > subsequence). Enter or tap a row to launch. Full-width / half-width and hiragana / katakana are treated as the same (“まっぷ” finds マップ)
 - When there is no prefix or word-start match, [Jev](https://typesafe.ai/) (TypeSafe) picks apps by meaning and inserts them marked with 󰚩 (“おんがく” finds music apps). You enter the API key in settings; without one, this feature stays off
 - The home button closes search and menus
-- A big clock and date (with the Japanese era year) in the empty space of home. Long-press anywhere empty to open settings
+- A big clock and date (with the Japanese era year) in the empty space of home. Long-press anywhere empty to open settings. To stop using DotLauncher, tap “ホームアプリを変える” (change home app) in settings and pick another launcher on the system screen it opens
 - Swipe left on home for a page listing all apps by category (Contacts & social, Work, Maps & travel, Games, …). Each category sits in the same window box as search, packed into 2 columns. Tap to launch, long-press for the menu. Sorting is automatic and uses the category the developer declared. Apps with no category, and apps declared as “Productivity” (too broad — it pulls in browsers and payment apps), are asked to Jev once and the answer is kept on the device (without a key they go to “Other”)
 - Search is a game-style window (with a ▶ cursor). Dark mode is Dragon Quest style, white border on black; light mode looks like a Game Boy Pocket LCD. You can switch back to a walker style in settings
 - With nothing typed, the history of search terms you used to open apps (up to 10) is shown at the top. Tap to search again, long-press to remove it from history
@@ -61,6 +61,8 @@ PROPS
 Instead of `keystore.properties`, the environment variables `SIGNING_STOREFILE` / `SIGNING_STOREPASSWORD` / `SIGNING_KEYALIAS` / `SIGNING_KEYPASSWORD` work too. Bump `versionCode` in `app/build.gradle.kts` for every release.
 
 The store listing and screenshots are in `fastlane/metadata/android/ja-JP/`, the English listing in `fastlane/metadata/android/en-US/`. The privacy policy is `docs/privacy.md` (English: `docs/privacy-en.md`).
+
+On Play it is a paid app (one-time purchase, no in-app billing). Set it to paid before the first release on any track: an app published as free can never be switched to paid. Keep trademarked names (Game Boy, Dragon Quest, …) out of the store listing.
 
 ## Demo mode
 
