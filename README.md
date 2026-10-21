@@ -1,30 +1,30 @@
 # DotLauncher
 
-シンプルな Android のホームアプリ。見た目は Omarchy（waybar / walker）寄り。Pixel 4a（Android 13）で動作確認。
+A simple Android home app, styled after Omarchy (waybar / walker). Tested on a Pixel 4a (Android 13). The UI is in Japanese.
 
 <p align="center">
-  <img src="docs/demo-dark-v2.gif" width="300" alt="ダークモード（ドラクエ風）。ホームから検索を開き、「chr」で Chrome、履歴の「ちず」で Jev がマップを選び、長押しでメニューを出す。左にスワイプでカテゴリ別のページ">
-  <img src="docs/demo-light-v2.gif" width="300" alt="ライトモード（ゲームボーイポケット風）。ホームから検索を開き、「chr」で Chrome、履歴の「ちず」で Jev がマップを選び、長押しでメニューを出す。左にスワイプでカテゴリ別のページ">
+  <img src="docs/demo-dark-v2.gif" width="300" alt="Dark mode (Dragon Quest style). Open search from home, type “chr” to find Chrome, pick “ちず” (map) from history so Jev chooses Maps, long-press for the menu, swipe left for the category pages">
+  <img src="docs/demo-light-v2.gif" width="300" alt="Light mode (Game Boy Pocket style). Open search from home, type “chr” to find Chrome, pick “ちず” (map) from history so Jev chooses Maps, long-press for the menu, swipe left for the category pages">
 </p>
-<p align="center">左がダークモード、右がライトモード（端末の設定に合わせて切り替わる。ホームでも切り替えられる）</p>
+<p align="center">Dark mode on the left, light mode on the right (follows the system setting; can also be toggled from home)</p>
 
-- 上部に waybar 風の一行バー（右にネットワークと電池）。左端の 󰖔 / 󰖙 をタップでダークモードとライトモードを切り替える。設定の「明暗を端末の設定に合わせる」で端末任せに戻せる
-- ホームに届いている通知（最大 4 件）。タップで元のアプリを開き、横スワイプで消す
-- ホームは大きな時計と最近使ったアプリ（直近 6 時間・最大 6 件）。タップか上スワイプでアプリ検索が出る
-- 通知・最近のアプリにはそれぞれ許可が要る（通知へのアクセス、使用状況へのアクセス）。許可していないとホーム下部に案内が出る
-- 文字を打つと絞り込み（先頭一致 > 単語頭一致 > 部分一致 > 部分列一致）。Enter か行タップで起動。全角半角、ひらがなカタカナは区別しない（「まっぷ」で マップ）
-- 先頭一致・単語頭一致が無いときは、[Jev](https://typesafe.ai/)（TypeSafe）に意味で選ばせて 󰚩 付きで差し込む（「おんがく」で音楽アプリ）。API キーはユーザーが設定画面で入れる。無ければこの機能は出ない
-- ホームボタンで検索やメニューを閉じる
-- ホームの空きに大きな時計と日付（和暦つき）。何もないところを長押しで設定
-- ホームを左にスワイプすると、全アプリをカテゴリ別（連絡・SNS、仕事、地図・移動、ゲームなど）に並べたページが出る。カテゴリごとに検索と同じウィンドウの箱に入れ、2 列に詰めて並べる。タップで起動、長押しでメニュー。振り分けは自動で、アプリの作者が申告したカテゴリを使い、申告の無いアプリと「仕事」と申告したアプリ（ブラウザや決済まで入って広すぎる）は Jev に一度だけ聞いて端末に残す（キーが無ければ「その他」）
-- 検索はゲーム風のウィンドウ（▶ のカーソル）。ダークモードはドラクエ風の黒地に白枠、ライトモードはゲームボーイポケットの液晶風。設定で walker 風に戻せる
-- 何も打っていないときは、アプリを開くのに使った検索語の履歴（最大 10 件）が上に出る。タップで再検索、長押しで履歴から消す
-- 行を長押しで「アプリ情報」「アンインストール」（システムアプリはアプリ情報のみ）
-- 色はダークモードなら Omarchy のテーマ `colors.toml`、ライトモードならゲームボーイポケットの 4 階調（画面ごと液晶風にする）。どちらも壁紙は隠してテーマの背景色で塗る。フォントはドット絵の DotGothic16（アイコンだけ UDEV Gothic NF）
+- A waybar-style one-line bar at the top (network and battery on the right). Tap the 󰖔 / 󰖙 at the left end to switch between dark and light mode. “明暗を端末の設定に合わせる” (follow the system dark mode) in settings hands it back to the system
+- Notifications on the home screen (up to 4). Tap to open the app that posted it, swipe sideways to dismiss
+- Home shows a big clock and recently used apps (last 6 hours, up to 6). Tap or swipe up to open app search
+- Notifications and recent apps each need a permission (notification access, usage access). Without them, a hint appears at the bottom of home
+- Typing filters apps (prefix > word-start > substring > subsequence). Enter or tap a row to launch. Full-width / half-width and hiragana / katakana are treated as the same (“まっぷ” finds マップ)
+- When there is no prefix or word-start match, [Jev](https://typesafe.ai/) (TypeSafe) picks apps by meaning and inserts them marked with 󰚩 (“おんがく” finds music apps). You enter the API key in settings; without one, this feature stays off
+- The home button closes search and menus
+- A big clock and date (with the Japanese era year) in the empty space of home. Long-press anywhere empty to open settings
+- Swipe left on home for a page listing all apps by category (Contacts & social, Work, Maps & travel, Games, …). Each category sits in the same window box as search, packed into 2 columns. Tap to launch, long-press for the menu. Sorting is automatic and uses the category the developer declared. Apps with no category, and apps declared as “Productivity” (too broad — it pulls in browsers and payment apps), are asked to Jev once and the answer is kept on the device (without a key they go to “Other”)
+- Search is a game-style window (with a ▶ cursor). Dark mode is Dragon Quest style, white border on black; light mode looks like a Game Boy Pocket LCD. You can switch back to a walker style in settings
+- With nothing typed, the history of search terms you used to open apps (up to 10) is shown at the top. Tap to search again, long-press to remove it from history
+- Long-press a row for “アプリ情報” (App info) and “アンインストール” (Uninstall) (system apps get App info only)
+- Colors come from the Omarchy theme `colors.toml` in dark mode, and from the Game Boy Pocket's 4 shades in light mode (the whole screen becomes an LCD). Both hide the wallpaper and paint the theme's background color. The font is the pixel font DotGothic16 (UDEV Gothic NF for icons only)
 
-## ビルド
+## Build
 
-Gradle 8.11 なので JDK 21 を使う（JDK 26 は不可）。
+Gradle 8.11 needs JDK 21 (JDK 26 does not work).
 
 ```sh
 export JAVA_HOME=~/.local/share/mise/installs/java/21
@@ -33,19 +33,19 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell cmd package set-home-activity jp.polidog.dotlauncher/.LauncherActivity
 ```
 
-## Jev の API キー
+## Jev API key
 
-ホームの何もないところを長押しして、設定の「Jev の API キー」に貼りつける。キーは端末の中にだけ残る。
+Long-press anywhere empty on home and paste it into “Jev の API キー” (Jev API key) in settings. The key stays on the device only.
 
-開発中は `local.properties`（または環境変数）に入れておくと、debug ビルドだけ初期値として入る。release ビルドには入らない。
+During development, put it in `local.properties` (or an environment variable) and debug builds get it as the default. It never goes into release builds.
 
 ```properties
 TYPESAFE_API_KEY=...
 ```
 
-## リリース
+## Release
 
-Play に上げるのは署名した AAB。アップロード鍵は一度作ったら無くさないこと（git には入れない）。
+Play gets a signed AAB. Once you create the upload key, don't lose it (and keep it out of git).
 
 ```sh
 keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
@@ -58,22 +58,22 @@ PROPS
 ./gradlew bundleRelease   # app/build/outputs/bundle/release/app-release.aab
 ```
 
-`keystore.properties` の代わりに環境変数 `SIGNING_STOREFILE` / `SIGNING_STOREPASSWORD` / `SIGNING_KEYALIAS` / `SIGNING_KEYPASSWORD` でもよい。出すたびに `app/build.gradle.kts` の `versionCode` を上げる。
+Instead of `keystore.properties`, the environment variables `SIGNING_STOREFILE` / `SIGNING_STOREPASSWORD` / `SIGNING_KEYALIAS` / `SIGNING_KEYPASSWORD` work too. Bump `versionCode` in `app/build.gradle.kts` for every release.
 
-ストアの説明文とスクリーンショットは `fastlane/metadata/android/ja-JP/`、プライバシーポリシーは `docs/privacy.md`（英語版は `docs/privacy-en.md`）。英語の説明文は `fastlane/metadata/android/en-US/`。
+The store listing and screenshots are in `fastlane/metadata/android/ja-JP/`, the English listing in `fastlane/metadata/android/en-US/`. The privacy policy is `docs/privacy.md` (English: `docs/privacy-en.md`).
 
-## デモ表示
+## Demo mode
 
-README の動画用。debug ビルドだけで効き、通知・検索履歴・再生中の曲をダミーに差し替える（本物には触らない）。
+For the README videos. Works in debug builds only, and swaps notifications, search history and the now-playing track for dummies (the real ones are left alone).
 
 ```sh
-adb shell am start -n jp.polidog.dotlauncher/.LauncherActivity --ez demo true   # 入る
-adb shell am start -n jp.polidog.dotlauncher/.LauncherActivity --ez demo false  # 戻る
+adb shell am start -n jp.polidog.dotlauncher/.LauncherActivity --ez demo true   # enter
+adb shell am start -n jp.polidog.dotlauncher/.LauncherActivity --ez demo false  # leave
 ```
 
-## テーマの差し替え
+## Changing the theme
 
-既定は `app/src/main/assets/colors.toml`（Turbonite）。端末側に置けば再ビルドなしで上書きできる。
+The default is `app/src/main/assets/colors.toml` (Turbonite). Put one on the device to override it without rebuilding.
 
 ```sh
 adb push ~/.local/state/omarchy/current/theme/colors.toml \
@@ -81,21 +81,21 @@ adb push ~/.local/state/omarchy/current/theme/colors.toml \
 adb shell am force-stop jp.polidog.dotlauncher
 ```
 
-## 構成
+## Layout
 
-| ファイル | 役割 |
+| File | Role |
 | --- | --- |
-| `LauncherActivity.kt` | Activity と UI（TopBar、Walker） |
-| `Theme.kt` | colors.toml の読み込み |
-| `Apps.kt` | 起動可能アプリの列挙、絞り込み、起動 |
-| `Status.kt` | 時刻、電池、ネットワークの状態 |
-| `Recent.kt` | 使用状況から最近のアプリを拾う |
-| `Notices.kt` | 通知を受け取る NotificationListenerService |
-| `JevSearch.kt` | Jev で意味からアプリを選ぶ |
-| `SearchHistory.kt` | 検索語の履歴 |
-| `Settings.kt` | ホームの設定（長押しで出る） |
-| `Demo.kt` | README の動画用のデモ表示 |
+| `LauncherActivity.kt` | Activity and UI (TopBar, Walker) |
+| `Theme.kt` | Loads colors.toml |
+| `Apps.kt` | Lists launchable apps, filters, launches |
+| `Status.kt` | Time, battery, network state |
+| `Recent.kt` | Picks recent apps from usage stats |
+| `Notices.kt` | NotificationListenerService that receives notifications |
+| `JevSearch.kt` | Uses Jev to pick apps by meaning |
+| `SearchHistory.kt` | Search term history |
+| `Settings.kt` | Home settings (opened by long-press) |
+| `Demo.kt` | Demo mode for the README videos |
 
-## ライセンス
+## License
 
-MIT（`LICENSE`）。同梱のフォントはどちらも SIL Open Font License 1.1。DotGothic16 は `licenses/DotGothic16-OFL.txt`、UDEV Gothic NF は `licenses/UDEVGothic-LICENSE.txt`。
+MIT (`LICENSE`). Both bundled fonts are under the SIL Open Font License 1.1: DotGothic16 in `licenses/DotGothic16-OFL.txt`, UDEV Gothic NF in `licenses/UDEVGothic-LICENSE.txt`.
