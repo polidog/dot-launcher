@@ -1,6 +1,6 @@
 # DotLauncher
 
-A simple Android home app, styled after Omarchy (waybar / walker). Tested on a Pixel 4a (Android 13). The UI is in Japanese.
+A simple Android home app, styled after Omarchy (waybar / walker). Tested on a Pixel 4a (Android 13) and an Xperia XQ-FE44 (Android 16). The UI is in Japanese.
 
 <p align="center">
   <img src="docs/demo-dark-v2.gif" width="300" alt="Dark mode (Dragon Quest style). Open search from home, type “chr” to find Chrome, pick “ちず” (map) from history so Jev chooses Maps, long-press for the menu, swipe left for the category pages">
