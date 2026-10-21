@@ -1,4 +1,4 @@
-package dev.polidog.dotlauncher
+package jp.polidog.dotlauncher
 
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents

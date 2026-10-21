@@ -1,4 +1,4 @@
-package dev.polidog.dotlauncher
+package jp.polidog.dotlauncher
 
 import android.os.SystemClock
 import android.util.Log

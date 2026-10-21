@@ -11,11 +11,11 @@ val localProps = Properties().apply {
 }
 
 android {
-    namespace = "dev.polidog.dotlauncher"
+    namespace = "jp.polidog.dotlauncher"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.polidog.dotlauncher"
+        applicationId = "jp.polidog.dotlauncher"
         minSdk = 29
         targetSdk = 36
         versionCode = 1

@@ -1,4 +1,4 @@
-package dev.polidog.dotlauncher
+package jp.polidog.dotlauncher
 
 import android.content.Context
 import androidx.compose.ui.graphics.Color
@@ -10,7 +10,7 @@ import java.io.File
  * 端末側の files/colors.toml（adb push で置ける）があればそれで上書きする。
  * これはダークモードの色で、ライトモードのときは GameBoy を使う。
  *   adb push ~/.local/state/omarchy/current/theme/colors.toml \
- *     /sdcard/Android/data/dev.polidog.dotlauncher/files/colors.toml
+ *     /sdcard/Android/data/jp.polidog.dotlauncher/files/colors.toml
  */
 data class LauncherTheme(
     val background: Color,

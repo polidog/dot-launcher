@@ -1,4 +1,4 @@
-package dev.polidog.dotlauncher
+package jp.polidog.dotlauncher
 
 import android.content.Context
 import androidx.compose.foundation.isSystemInDarkTheme

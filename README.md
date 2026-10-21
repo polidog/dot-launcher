@@ -30,7 +30,7 @@ Gradle 8.11 なので JDK 21 を使う（JDK 26 は不可）。
 export JAVA_HOME=~/.local/share/mise/installs/java/21
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell cmd package set-home-activity dev.polidog.dotlauncher/.LauncherActivity
+adb shell cmd package set-home-activity jp.polidog.dotlauncher/.LauncherActivity
 ```
 
 ## Jev の API キー
@@ -67,8 +67,8 @@ PROPS
 README の動画用。debug ビルドだけで効き、通知・検索履歴・再生中の曲をダミーに差し替える（本物には触らない）。
 
 ```sh
-adb shell am start -n dev.polidog.dotlauncher/.LauncherActivity --ez demo true   # 入る
-adb shell am start -n dev.polidog.dotlauncher/.LauncherActivity --ez demo false  # 戻る
+adb shell am start -n jp.polidog.dotlauncher/.LauncherActivity --ez demo true   # 入る
+adb shell am start -n jp.polidog.dotlauncher/.LauncherActivity --ez demo false  # 戻る
 ```
 
 ## テーマの差し替え
@@ -77,8 +77,8 @@ adb shell am start -n dev.polidog.dotlauncher/.LauncherActivity --ez demo false 
 
 ```sh
 adb push ~/.local/state/omarchy/current/theme/colors.toml \
-  /sdcard/Android/data/dev.polidog.dotlauncher/files/colors.toml
-adb shell am force-stop dev.polidog.dotlauncher
+  /sdcard/Android/data/jp.polidog.dotlauncher/files/colors.toml
+adb shell am force-stop jp.polidog.dotlauncher
 ```
 
 ## 構成
