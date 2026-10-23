@@ -176,9 +176,10 @@ fun Launcher(resumes: Int, homePresses: Int) {
         recentGranted = Recent.granted(context)
         if (recentGranted && apps.isNotEmpty()) recent = withContext(Dispatchers.IO) { Recent.load(context, apps) }
     }
-    // 申告で分かるぶんを先に出し、残りは Jev に聞いてから出し直す。キーを入れたときも聞き直す
+    // 申告で分かるぶんを先に出し、残りは Jev に聞いてから出し直す。キーを入れたときと、設定でやり直したときも聞き直す
     val jevKey by Settings.jevKey
-    LaunchedEffect(apps, jevKey) {
+    val generation by Categories.generation
+    LaunchedEffect(apps, jevKey, generation) {
         categories = Categories.load(context, apps)
         if (withContext(Dispatchers.IO) { Categories.classify(context, apps) }) categories = Categories.load(context, apps)
     }
@@ -853,6 +854,7 @@ fun HomeSettings(t: LauncherTheme, onDismiss: () -> Unit) {
             SettingRow(t, Settings.spellSearch, "検索をゲーム風のウィンドウにする")
             FollowSystemRow(t)
             JevKeyRow(t)
+            RecategorizeRow(t)
             HomeAppRow(t)
         }
     }
@@ -922,6 +924,20 @@ private fun FollowSystemRow(t: LauncherTheme) {
     val dark = isDark()
     MenuRow(t, if (follow) "󰄲" else "󰄱", "明暗を端末の設定に合わせる", if (follow) t.foreground else t.muted) {
         Settings.setDarkMode(context, if (follow) dark else null)
+    }
+}
+
+/**
+ * カテゴリ分けをやり直す。Jev の答えを捨てて聞き直す。
+ * 申告で決まるぶんは変わらない。キーが無いと聞き直せない（捨てるだけで全部「その他」になる）ので、行を出さない。
+ */
+@Composable
+private fun RecategorizeRow(t: LauncherTheme) {
+    val context = LocalContext.current
+    if (!JevSearch.available) return
+    val busy by Categories.busy
+    MenuRow(t, "󰑐", if (busy) "カテゴリ分けを聞き直しています" else "カテゴリ分けをやり直す", if (busy) t.muted else t.foreground) {
+        if (!busy) Categories.reset(context)
     }
 }
 

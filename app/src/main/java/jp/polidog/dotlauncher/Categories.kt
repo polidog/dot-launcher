@@ -3,6 +3,8 @@ package jp.polidog.dotlauncher
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.util.Log
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -31,6 +33,18 @@ object Categories {
     private const val PREFS = "categories"
     private const val CHUNK = 20 // 1 リクエストで聞くアプリの数
 
+    /** やり直した回数。増えるとランチャーが Jev に聞き直す。 */
+    val generation = mutableIntStateOf(0)
+
+    /** いま Jev に聞いている最中か。設定の行の表示に使う。 */
+    val busy = mutableStateOf(false)
+
+    /** Jev の答えを全部捨てて、聞き直す。分類が変だったときや、カテゴリの種類を変えたあとに人が設定から呼ぶ。 */
+    fun reset(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
+        generation.intValue++
+    }
+
     /** 通信しないで分かるぶん。申告も Jev の答えも無いアプリは Other。 */
     fun load(context: Context, apps: List<AppEntry>): Map<AppEntry, Category> {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -57,10 +71,15 @@ object Categories {
         if (!JevSearch.available) return false
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         var added = false
-        for (chunk in unknown(context, apps).chunked(CHUNK)) {
-            val answers = ask(chunk) ?: break
-            prefs.edit().apply { answers.forEach { (pkg, c) -> putString(pkg, c.name) } }.apply()
-            added = added || answers.isNotEmpty()
+        busy.value = true
+        try {
+            for (chunk in unknown(context, apps).chunked(CHUNK)) {
+                val answers = ask(chunk) ?: break
+                prefs.edit().apply { answers.forEach { (pkg, c) -> putString(pkg, c.name) } }.apply()
+                added = added || answers.isNotEmpty()
+            }
+        } finally {
+            busy.value = false
         }
         return added
     }
