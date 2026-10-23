@@ -69,6 +69,9 @@ class NoticeListener : NotificationListenerService() {
 
         fun dismiss(notice: Notice) { instance?.cancelNotification(notice.key) }
 
+        /** 通知シェードの「すべて消去」と同じ。消せる通知をまとめて消す（ホームに出ていない分も含む）。 */
+        fun dismissAll() { instance?.cancelAllNotifications() }
+
         /** 通知をタップしたときと同じく元のアプリを開く。 */
         fun open(context: Context, notice: Notice) {
             val pi = notice.intent

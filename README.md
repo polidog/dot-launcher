@@ -9,7 +9,7 @@ A simple Android home app, styled after Omarchy (waybar / walker). Tested on a P
 <p align="center">Dark mode on the left, light mode on the right (follows the system setting; can also be toggled from home)</p>
 
 - A waybar-style one-line bar at the top (network and battery on the right). Tap the 󰖔 / 󰖙 at the left end to switch between dark and light mode. “明暗を端末の設定に合わせる” (follow the system dark mode) in settings hands it back to the system
-- Notifications on the home screen (up to 4). Tap to open the app that posted it, swipe sideways to dismiss
+- Notifications on the home screen (up to 4). Tap to open the app that posted it, swipe sideways to dismiss. “すべて消す” (clear all) at the right of the heading dismisses every clearable notification, including the ones not shown
 - Home shows a big clock and recently used apps (last 6 hours, up to 6). Tap or swipe up to open app search
 - Notifications and recent apps each need a permission (notification access, usage access). Without them, a hint appears at the bottom of home
 - Typing filters apps (prefix > word-start > substring > subsequence). Enter or tap a row to launch. Full-width / half-width and hiragana / katakana are treated as the same (“まっぷ” finds マップ)

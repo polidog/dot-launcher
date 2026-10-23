@@ -248,6 +248,9 @@ fun Launcher(resumes: Int, homePresses: Int) {
                             onOpen = { NoticeListener.open(context, it) },
                             onDismiss = { n ->
                                 if (demo) Demo.notices.value = Demo.notices.value - n else NoticeListener.dismiss(n)
+                            },
+                            onDismissAll = {
+                                if (demo) Demo.notices.value = emptyList() else NoticeListener.dismissAll()
                             })
                         RecentApps(theme, recent,
                             onLaunch = { Apps.launch(context, it) },
@@ -475,13 +478,25 @@ fun Hint(t: LauncherTheme, text: String, onClick: () -> Unit) {
     )
 }
 
-/** 届いている通知。タップで元のアプリを開き、横にスワイプで消す。 */
+/** 届いている通知。タップで元のアプリを開き、横にスワイプで消す。見出しの右端の「すべて消す」でまとめて消す。 */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Notices(t: LauncherTheme, notices: List<Notice>, onOpen: (Notice) -> Unit, onDismiss: (Notice) -> Unit) {
+fun Notices(t: LauncherTheme, notices: List<Notice>, onOpen: (Notice) -> Unit, onDismiss: (Notice) -> Unit, onDismissAll: () -> Unit) {
     if (notices.isEmpty()) return
     val hm = remember { SimpleDateFormat("HH:mm", Locale.US) }
+    val label = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = t.muted)
     Column(Modifier.fillMaxWidth()) {
-        BasicText("notifications", style = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = t.muted), modifier = Modifier.padding(start = 10.dp, bottom = 4.dp))
+        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            BasicText("notifications", style = label, modifier = Modifier.weight(1f).padding(start = 10.dp))
+            BasicText(
+                "すべて消す",
+                style = label,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .combinedClickable(onClick = onDismissAll)
+                    .padding(horizontal = 10.dp, vertical = 2.dp),
+            )
+        }
         Column(
             Modifier
                 .clip(RoundedCornerShape(6.dp))
