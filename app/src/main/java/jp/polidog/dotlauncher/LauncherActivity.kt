@@ -133,6 +133,7 @@ class LauncherActivity : ComponentActivity() {
         }
         Demo.apply(this, intent)
         Settings.load(this)
+        NowPlaying.load(this)
         setContent { Launcher(resumes.intValue, homePresses.intValue) }
     }
 
@@ -299,6 +300,7 @@ fun HomeClock(t: LauncherTheme, s: Status, modifier: Modifier = Modifier) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NowPlayingBar(t: LauncherTheme, track: Track, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val context = LocalContext.current
     val style = TextStyle(fontFamily = Mono, fontSize = 16.sp, color = t.foreground)
     val text = listOf(track.title, track.artist).filter { it.isNotBlank() }.joinToString(" - ")
     Row(
@@ -329,18 +331,19 @@ fun NowPlayingBar(t: LauncherTheme, track: Track, modifier: Modifier = Modifier,
                 )
             }
         }
-        MediaButton(t, "󰒮") { NowPlaying.previous(track) }
-        MediaButton(t, if (track.playing) "󰏤" else "󰐊") { NowPlaying.toggle(track) }
-        MediaButton(t, "󰒭") { NowPlaying.next(track) }
+        // 覚えていただけの曲は再生で立ち上げ直せるが、前後の曲は送り先がないので薄くする
+        MediaButton(t, "󰒮", enabled = !track.remembered) { NowPlaying.previous(track) }
+        MediaButton(t, if (track.playing) "󰏤" else "󰐊") { NowPlaying.toggle(context, track) }
+        MediaButton(t, "󰒭", enabled = !track.remembered) { NowPlaying.next(track) }
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MediaButton(t: LauncherTheme, icon: String, onClick: () -> Unit) {
+private fun MediaButton(t: LauncherTheme, icon: String, enabled: Boolean = true, onClick: () -> Unit) {
     BasicText(
         text = icon,
-        style = TextStyle(fontFamily = Icons, fontSize = 22.sp, color = t.foreground),
+        style = TextStyle(fontFamily = Icons, fontSize = 22.sp, color = if (enabled) t.foreground else t.muted),
         modifier = Modifier
             .clip(RoundedCornerShape(4.dp))
             .combinedClickable(onClick = onClick)
@@ -852,6 +855,7 @@ fun HomeSettings(t: LauncherTheme, onDismiss: () -> Unit) {
             )
             Spacer(Modifier.height(6.dp))
             SettingRow(t, Settings.spellSearch, "検索をゲーム風のウィンドウにする")
+            SettingRow(t, Settings.keepNowPlaying, "曲が止まっても再生バーを残す")
             FollowSystemRow(t)
             JevKeyRow(t)
             RecategorizeRow(t)

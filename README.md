@@ -12,6 +12,7 @@ A simple Android home app, styled after Omarchy (waybar / walker). Tested on a P
 - Notifications on the home screen (up to 4). Tap to open the app that posted it, swipe sideways to dismiss. “すべて消す” (clear all) at the right of the heading dismisses every clearable notification, including the ones not shown
 - Home shows a big clock and recently used apps (last 6 hours, up to 6). Tap or swipe up to open app search
 - Notifications and recent apps each need a permission (notification access, usage access). Without them, a hint appears at the bottom of home
+- The track playing in a music app sits in a bar at the bottom of home (needs notification access). Tap the title to open the app, use the buttons to skip and play/pause. When the music stops or the app quits, the last track stays in the bar greyed out and play starts it again (through the same path as a headset button; apps that don't answer it are simply opened). “曲が止まっても再生バーを残す” (keep the bar after the music stops) in settings turns this off
 - Typing filters apps (prefix > word-start > substring > subsequence). Enter or tap a row to launch. Full-width / half-width and hiragana / katakana are treated as the same (“まっぷ” finds マップ)
 - When there is no prefix or word-start match, [Jev](https://typesafe.ai/) (TypeSafe) picks apps by meaning and inserts them marked with 󰚩 (“おんがく” finds music apps). You enter the API key in settings; without one, this feature stays off
 - The home button closes search and menus

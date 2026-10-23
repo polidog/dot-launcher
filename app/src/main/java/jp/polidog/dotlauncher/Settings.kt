@@ -13,13 +13,16 @@ object Settings {
     /** 検索をドラクエのウィンドウ風にする。 */
     val spellSearch = mutableStateOf(true)
 
+    /** 曲が止まったり音楽アプリが終わったりしても、最後の曲を再生バーに残す。 */
+    val keepNowPlaying = mutableStateOf(true)
+
     /** ダークモードにするか。null なら端末の設定に合わせる。 */
     val darkMode = mutableStateOf<Boolean?>(null)
 
     /** Jev（TypeSafe）の API キー。ユーザーが自分で取ってきて入れる。空なら Jev を使う機能は出ない。 */
     val jevKey = mutableStateOf("")
 
-    private val keys = mapOf("spell_search" to spellSearch)
+    private val keys = mapOf("spell_search" to spellSearch, "keep_now_playing" to keepNowPlaying)
 
     fun load(context: Context) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
